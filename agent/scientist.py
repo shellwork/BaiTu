@@ -12,8 +12,8 @@ class ScientistAgent:
     def decide_next_step(self, plan: ExperimentPlan, result: ExperimentResult) -> Dict[str, Any]:
         return {
             "should_iterate": True,
-            "rationale": "结果未达到预设阈值",
-            "next_hypothesis": "调整pH区间与孵育时间",
+            "rationale": "",
+            "next_hypothesis": "",
 
         }
     def analyze(self, raw_data: Dict[str, Any]) -> ExperimentResult:

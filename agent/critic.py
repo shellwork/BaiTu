@@ -17,7 +17,7 @@ class CriticAgent:
         instrument_ok = self.instruments.validate(plan)
 
         if not inventory_ok:
-            plan.constraints["inventory_warning"] = "库存可能不足"
+            plan.constraints["inventory_warning"] = ""
         if not instrument_ok:
-            plan.constraints["instrument_warning"] = "仪器参数需复核"
+            plan.constraints["instrument_warning"] = ""
         return plan
