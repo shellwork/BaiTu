@@ -3,15 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from schemas.plan import ExperimentPlan
-from tools.hardware.opentrons_api import OpentronsAPI
+from tools.hardware.momentum_api import MomentumAPI
 from typing import Dict, Any
 
 @dataclass
 class ExecutorAgent:
-    hardware_api: OpentronsAPI = OpentronsAPI()
+    hardware_api: MomentumAPI = MomentumAPI()
 
     def generate_code(self, plan: ExperimentPlan) -> str:
-        header = "# Auto-generated protocol\n"
+        header = "# Auto-generated Momentum protocol\n"
         body = self.hardware_api.render_protocol(plan)
         return header + body
 

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
-from planner import PlannerAgent
-from critic import CriticAgent
-from executor import ExecutorAgent
-from scientist import ScientistAgent
+from agent.planner import PlannerAgent
+from agent.critic import CriticAgent
+from agent.executor import ExecutorAgent
+from agent.scientist import ScientistAgent
 from schemas.plan import ExperimentPlan
 from schemas.state import OrchestratorState
 from schemas.result import ExperimentResult
@@ -19,18 +19,44 @@ class CentralOrchestrator:
     critic: CriticAgent = field(default_factory=CriticAgent)
     executor: ExecutorAgent = field(default_factory=ExecutorAgent)
     scientist: ScientistAgent = field(default_factory=ScientistAgent)
+    llm_provider: Optional[Any] = None
+
+    def __post_init__(self) -> None:
+        """
+        Inject the LLM provider into agents that need it during initialization.
+        """
+        if self.llm_provider:
+            self.planner.llm_provider = self.llm_provider
+            # Can also be injected into Critic or Scientist later
 
     def handle_user_request(self, user_intent: str) -> Dict[str, Any]:
+        """
+        Main multi-agent workflow:
+        1. Planner: natural language -> structured plan (LLM-driven)
+        2. Critic: plan verification (inventory/equipment/safety)
+        3. Executor: plan -> Momentum code -> execution
+        4. Scientist: result analysis -> next-step suggestion
+        """
         self.state.last_user_intent = user_intent
+        
+        # 1. Planning stage
         plan: ExperimentPlan = self.planner.create_plan(user_intent)
+        
+        # 2. Review stage
         verified_plan: ExperimentPlan = self.critic.verify_plan(plan)
+        if verified_plan.constraints.get("error"):
+            return {"error": "Plan verification failed", "details": verified_plan.constraints}
 
+        # 3. Execution stage
         code = self.executor.generate_code(verified_plan)
-        self.executor.simulate(code)
+        try:
+            self.executor.simulate(code)
+            run_id = self.executor.execute(code)
+            raw_data = self.executor.collect_data(run_id)
+        except Exception as e:
+            return {"error": "Execution failed", "message": str(e), "code": code}
 
-        run_id = self.executor.execute(code)
-        raw_data = self.executor.collect_data(run_id)
-
+        # 4. Analysis stage
         result: ExperimentResult = self.scientist.analyze(raw_data)
         next_step = self.scientist.decide_next_step(verified_plan, result)
 
@@ -42,4 +68,5 @@ class CentralOrchestrator:
             "code": code,
             "result": result.to_dict(),
             "next_step": next_step,
+            "status": "success"
         }
