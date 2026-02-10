@@ -363,18 +363,14 @@ class EvaluatorAgent:
         The most common causes of a poor Michaelis-Menten fit:
 
         1. SUBSTRATE RANGE DOESN'T BRACKET Km
-           - If all [S] >> Km: you only see the plateau (saturation).
-             The curve looks flat and the fitter can't find Km.
+           - If all [S] >> Km: you only see the plateau (saturation). The curve looks flat and the fitter can't find Km.
              Fix: add lower [S] values (~0.2 × Km).
-           - If all [S] << Km: you only see the linear region.
-             The curve looks straight and the fitter can't find Vmax.
+           - If all [S] << Km: you only see the linear region. The curve looks straight and the fitter can't find Vmax.
              Fix: add higher [S] values (~5 × Km).
 
         2. ENZYME CONCENTRATION TOO HIGH
-           If [E] is > 10% of Km, the enzyme depletes the substrate
-           before a steady-state rate is established.  The measured
-           "initial rates" aren't really initial rates — they're
-           from a period where [S] is already dropping.
+           If [E] is > 10% of Km, the enzyme depletes the substrate before a steady-state rate is established.  The measured
+           "initial rates" aren't really initial rates — they're from a period where [S] is already dropping.
            Fix: reduce [E] to ~1% of Km.
 
         3. NOT ENOUGH DATA POINTS
@@ -488,17 +484,13 @@ class EvaluatorAgent:
         The logic is different for too-low vs. too-high Km:
 
         Km too LOW (< 0.001 mM):
-            → All [S] values are in the saturated region, so the curve
-              looks flat and the fitter pushes Km toward zero.
-            → Fix: add LOWER substrate concentrations so you can see
-              where the curve transitions from linear to saturated.
+            → All [S] values are in the saturated region, so the curve looks flat and the fitter pushes Km toward zero.
+            → Fix: add LOWER substrate concentrations so you can see where the curve transitions from linear to saturated.
 
         Km too HIGH (> 100 mM):
-            → All [S] values are in the linear region, so the curve
-              looks like a straight line and the fitter pushes Km
+            → All [S] values are in the linear region, so the curve looks like a straight line and the fitter pushes Km
               toward infinity.
-            → Fix: add HIGHER substrate concentrations to see the
-              saturation plateau.
+            → Fix: add HIGHER substrate concentrations to see the saturation plateau.
         """
         adjustments: List[ParameterAdjustment] = []
         substrate_concs = metrics.get("substrate_concentrations", [])
@@ -554,8 +546,7 @@ class EvaluatorAgent:
 
         Vmax ≤ 0 means no measurable catalytic activity.  Possible causes:
         - Enzyme stock is inactive or denatured (e.g., boiled pineapple juice)
-        - Enzyme concentration is too low for the spectrophotometer to detect
-          the change in absorbance
+        - Enzyme concentration is too low for the spectrophotometer to detect the change in absorbance
         - Substrate is not accessible to the enzyme (aggregation, wrong buffer)
 
         The main recommendation is to increase enzyme concentration and
@@ -582,11 +573,9 @@ class EvaluatorAgent:
         existing_failures: List[FailureCategory],
     ) -> List[str]:
         """
-        Check whether deficiencies in the Planner's LLM prompt may have
-        contributed to experimental failures.
+        Check whether deficiencies in the Planner's LLM prompt may have contributed to experimental failures.
 
-        We ONLY flag prompt issues when there are already experimental
-        failures (POOR_FIT, KM_OUT_OF_RANGE, etc.).  A prompt that
+        We ONLY flag prompt issues when there are already experimental failures (POOR_FIT, KM_OUT_OF_RANGE, etc.).  A prompt that
         produces a passing experiment is fine regardless of quality.
 
         We check for:
@@ -653,14 +642,11 @@ class EvaluatorAgent:
         """
         Check whether the RAG system returned real references or stubs.
 
-        The SOPRAGClient currently returns hardcoded placeholders like
-        ["SOP-001", "SOP-002"].  If ALL references match this pattern,
-        the vector database hasn't been populated with real standard
-        operating procedures, and the Planner is generating protocols
+        The SOPRAGClient currently returns hardcoded placeholders like ["SOP-001", "SOP-002"].  If ALL references match this pattern,
+        the vector database hasn't been populated with real standard operating procedures, and the Planner is generating protocols
         without domain knowledge.
 
-        This doesn't block execution, but it's a signal that the RAG
-        system needs attention.
+        This doesn't block execution, but it's a signal that the RAG system needs attention.
 
         Returns a list of diagnostic strings (empty if references look real).
         """
@@ -704,15 +690,10 @@ class EvaluatorAgent:
         previous_metrics: Dict[str, Any],
     ) -> str:
         """
-        Build the natural-language text block that gets injected into
-        the Planner's next LLM prompt.
+        Build the natural-language text block that gets injected into the Planner's next LLM prompt.
 
-        THIS IS THE MOST IMPORTANT METHOD IN THE EVALUATOR.
-
-        The text it produces is the mechanism by which evaluation results
-        flow backward through the pipeline into the next planning cycle.
-        Without this, the planner would just regenerate the same protocol
-        and the loop would never converge.
+        The text it produces is the mechanism by which evaluation results flow backward through the pipeline into the next planning cycle.
+        Without this, the planner would just regenerate the same protocol and the loop would never converge.
 
         The structure of the output:
         1. Header: "FEEDBACK FROM ITERATION N"
@@ -722,8 +703,7 @@ class EvaluatorAgent:
            and scientific rationale
         5. Explicit instruction: "You MUST incorporate these adjustments"
 
-        The tone is directive — we're telling the LLM what it MUST change,
-        not suggesting.  LLMs respond better to explicit constraints.
+        The tone is directive — we're telling the LLM what it MUST change, not suggesting.  LLMs respond better to explicit constraints.
         """
         lines = [
             f"=== FEEDBACK FROM ITERATION {iteration} ===",
