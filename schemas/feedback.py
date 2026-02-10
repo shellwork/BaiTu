@@ -154,8 +154,7 @@ class IterationFeedback:
 
         r_squared:
             The R² value from the Michaelis-Menten fit, if available. Stored here so that downstream consumers (orchestrator, history log)
-            don't have to dig into the ExperimentResult to find it.
-            None if the scientist agent didn't produce this metric.
+            don't have to dig into the ExperimentResult to find it. None if the scientist agent didn't produce this metric.
 
         km:
             The fitted Km value in mM, if available. Same reasoning as r_squared.
@@ -164,18 +163,15 @@ class IterationFeedback:
             The fitted Vmax value, if available. Same reasoning as r_squared.
 
         parameter_adjustments:
-            List of ParameterAdjustment objects describing exactly what to change
-            for the next iteration. Computed by the Evaluator's diagnostic methods
+            List of ParameterAdjustment objects describing exactly what to change for the next iteration. Computed by the Evaluator's diagnostic methods
             (e.g., _diagnose_poor_fit, _diagnose_km_issue).
 
         diagnosis_summary:
-            A pipe-separated string of all diagnostic messages. Meant for logging
-            and display. Example:
+            A pipe-separated string of all diagnostic messages. Meant for logging and display. Example:
                 "R² = 0.52 is below 0.8 threshold | Km = 0.3 mM is plausible"
 
         replanning_context:
-            The critical field for the feedback loop. This is a multi-line
-            natural-language string that gets injected verbatim into the Planner's
+            The critical field for the feedback loop. This is a multi-line natural-language string that gets injected verbatim into the Planner's
             next LLM prompt. It contains:
                 - What iteration this is feedback for
                 - The previous metrics (R², Km, Vmax)
@@ -219,11 +215,9 @@ class IterationFeedback:
 
     def to_dict(self) -> Dict[str, Any]:
         """
-        Serialize to a plain dictionary for JSON output, logging, and
-        inclusion in the orchestrator's history records.
+        Serialize to a plain dictionary for JSON output, logging, and inclusion in the orchestrator's history records.
 
-        All enum values are converted to their string representations,
-        and nested ParameterAdjustment objects are flattened to dicts.
+        All enum values are converted to their string representations, and nested ParameterAdjustment objects are flattened to dicts.
         """
         return {
             "iteration": self.iteration,
