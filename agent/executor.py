@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
+from dataclasses import dataclass, field
 from schemas.plan import ExperimentPlan
 from tools.hardware.momentum_api import MomentumAPI
 from typing import Dict, Any
 
 @dataclass
 class ExecutorAgent:
-    hardware_api: MomentumAPI = MomentumAPI()
+    hardware_api: MomentumAPI = field(default_factory=MomentumAPI)
 
     def generate_code(self, plan: ExperimentPlan) -> str:
         header = "# Auto-generated Momentum protocol\n"

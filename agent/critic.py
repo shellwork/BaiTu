@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from schemas.plan import ExperimentPlan
 from tools.rag.inventory_client import InventoryClient
@@ -9,8 +9,8 @@ from tools.rag.instrument_client import InstrumentClient
 
 @dataclass
 class CriticAgent:
-    inventory: InventoryClient = InventoryClient()
-    instruments: InstrumentClient = InstrumentClient()
+    inventory: InventoryClient = field(default_factory=InventoryClient)
+    instruments: InstrumentClient = field(default_factory=InstrumentClient)
 
     def verify_plan(self, plan: ExperimentPlan) -> ExperimentPlan:
         inventory_ok = self.inventory.check(plan)

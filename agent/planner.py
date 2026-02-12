@@ -6,13 +6,45 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 
 from schemas.plan import ExperimentPlan, ProtocolStep
+from agent.prompts import BIO_PLANNER_PROMPT
 from tools.rag.sop_client import SOPRAGClient
 
 
 @dataclass
 class PlannerAgent:
-    rag_client: SOPRAGClient = SOPRAGClient()
+    rag_client: SOPRAGClient = field(default_factory=SOPRAGClient)
     llm_provider: Optional[Any] = None  # Injected by Orchestrator
+
+    def design_experiment(self, user_intent: str) -> ExperimentPlan:
+        """
+        Generate a text-based experimental protocol based on biological knowledge.
+        Does NOT generate machine steps yet.
+        """
+        # 1. Retrieve relevant SOP references (optional context)
+        references = self.rag_client.search(user_intent)
+        
+        # 2. Build Prompt
+        prompt = BIO_PLANNER_PROMPT.format(user_intent=user_intent)
+        
+        # 3. Call LLM
+        if self.llm_provider:
+            response = self.llm_provider.chat([
+                {"role": "system", "content": "You are an expert biologist."},
+                {"role": "user", "content": prompt}
+            ])
+            protocol_text = response.get("output", "")
+        else:
+            protocol_text = "LLM Provider not available. Cannot generate protocol."
+
+        return ExperimentPlan(
+            title=f"Experiment Design: {user_intent[:50]}",
+            steps=[], # No machine steps yet
+            protocol_text=protocol_text,
+            resources={
+                "references": references,
+            },
+            constraints={"status": "design_only"},
+        )
 
     def create_plan(self, user_intent: str) -> ExperimentPlan:
         """

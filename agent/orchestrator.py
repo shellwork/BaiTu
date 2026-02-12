@@ -29,6 +29,22 @@ class CentralOrchestrator:
             self.planner.llm_provider = self.llm_provider
             # Can also be injected into Critic or Scientist later
 
+    def run_experiment_design(self, user_intent: str) -> Dict[str, Any]:
+        """
+        Run ONLY the design phase: Natural Language -> Text Protocol.
+        """
+        self.state.last_user_intent = user_intent
+        
+        # Call the planner's design method
+        plan: ExperimentPlan = self.planner.design_experiment(user_intent)
+        
+        return {
+            "status": "design_complete",
+            "plan_title": plan.title,
+            "protocol_text": plan.protocol_text,
+            "references": plan.resources.get("references", [])
+        }
+
     def handle_user_request(self, user_intent: str) -> Dict[str, Any]:
         """
         Main multi-agent workflow:

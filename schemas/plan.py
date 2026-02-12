@@ -26,6 +26,7 @@ class ExperimentPlan:
     steps: List[ProtocolStep] = field(default_factory=list)
     resources: Dict[str, Any] = field(default_factory=dict)
     constraints: Dict[str, Any] = field(default_factory=dict)
+    protocol_text: str = ""  # Natural language description/SOP of the experiment
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -33,4 +34,5 @@ class ExperimentPlan:
             "steps": [step.to_dict() for step in self.steps],
             "resources": dict(self.resources),
             "constraints": dict(self.constraints),
+            "protocol_text": self.protocol_text,
         }
