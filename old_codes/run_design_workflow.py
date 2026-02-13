@@ -28,7 +28,7 @@ def main():
     orchestrator = CentralOrchestrator(llm_provider=llm)
     
     # 3. Define the user request
-    user_request = "设计一个蛋白酶动力学曲线的测定实验"
+    user_request = "design a experiment to measure the kinetic of a proteinase, we need to get km and vmax"
     if len(sys.argv) > 1:
         user_request = " ".join(sys.argv[1:])
         
