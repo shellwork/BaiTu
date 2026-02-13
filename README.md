@@ -14,3 +14,5 @@ An AI agent for automated experiment protocol design(02-762)
 ```
 python main.py
 ```
+new project workflow:
+Input (natural language)-> model1 -> output_m1(numerical parameters) -> model2 -> output_m2(predicted kinetics curve)
