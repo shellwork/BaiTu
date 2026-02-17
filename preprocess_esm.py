@@ -8,12 +8,13 @@ import argparse
 
 # 配置
 # 使用 ESM-2 8M 模型作为默认，因为它小且快 (dim=320)
-# 如果你有更多资源，可以换成 "facebook/esm2_t12_35M_UR50D" (dim=480) 
-# 或 "facebook/esm2_t33_650M_UR50D" (dim=1280)
 DEFAULT_MODEL_NAME = "facebook/esm2_t6_8M_UR50D"
 DATA_PATH = "data/kinetics_data.csv"
 OUTPUT_PATH = "data/kinetics_data_with_embeddings.pt"
 BATCH_SIZE = 32
+
+# 本地模型缓存路径
+MODEL_CACHE_DIR = "./esm_model_cache"
 
 def get_device():
     if torch.cuda.is_available():
@@ -27,18 +28,20 @@ def preprocess_esm_embeddings(csv_path, output_path, model_name=DEFAULT_MODEL_NA
     if not os.path.exists(csv_path):
         # 如果数据不存在，先生成假数据
         print("Data file not found. Generating dummy data first...")
-        from src.utils import generate_dummy_data
+        from utils import generate_dummy_data
         generate_dummy_data(num_samples=100, output_path=csv_path)
 
     df = pd.read_csv(csv_path)
     sequences = df['enzyme_seq'].tolist()
     
     print(f"Loading ESM-2 model: {model_name}...")
+    print(f"Model will be cached in: {MODEL_CACHE_DIR}")
     device = get_device()
     print(f"Using device: {device}")
     
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModel.from_pretrained(model_name).to(device)
+    # 使用 local_files_only=False (默认) 第一次运行会下载，之后会从 cache_dir 加载
+    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=MODEL_CACHE_DIR)
+    model = AutoModel.from_pretrained(model_name, cache_dir=MODEL_CACHE_DIR).to(device)
     model.eval()
 
     embeddings = []
