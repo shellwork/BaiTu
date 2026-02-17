@@ -22,7 +22,7 @@ class KineticsDataset(Dataset):
         self.enzyme_embeddings = data_dict['enzyme_embeddings'] # Tensor (N, Dim)
         self.transform = transform
         
-        # 验证数据对齐
+        # Verify data alignment
         assert len(self.data_frame) == len(self.enzyme_embeddings), "Dataframe and embeddings length mismatch!"
 
     def __len__(self):
@@ -34,29 +34,30 @@ class KineticsDataset(Dataset):
 
         row = self.data_frame.iloc[idx]
         
-        # 1. 酶特征 (直接从预计算的 Tensor 中获取)
+        # 1. Enzyme features (Directly from precomputed Tensor)
         enzyme_embed = self.enzyme_embeddings[idx] # (Dim,)
 
-        # 2. 底物特征 (Morgan Fingerprint) - 仍然实时计算，因为很快
+        # 2. Substrate features (Morgan Fingerprint) - Still computed on-the-fly as it's fast
         substrate_smiles = row['substrate_smiles']
         substrate_fp = smiles_to_morgan_fingerprint(substrate_smiles, nBits=Config.SUBSTRATE_DIM)
         substrate_fp = torch.tensor(substrate_fp, dtype=torch.float32)
 
-        # 3. 环境条件 (Temperature, pH, Salt)
+        # 3. Environmental conditions (Temperature, pH, Salt)
         conditions = torch.tensor([
             row['temperature'], 
             row['ph'], 
             row['salt_conc']
         ], dtype=torch.float32)
         
-        # 简单的标准化 (Z-score normalization)
+        # Simple normalization (Z-score normalization)
+        # Assuming mean/std values for demonstration; should be based on dataset statistics in production
         conditions = (conditions - torch.tensor([30.0, 7.0, 50.0])) / torch.tensor([5.0, 1.0, 20.0])
 
-        # 4. 实验具体设置
+        # 4. Experimental setup (Variables for physics equation)
         enzyme_conc = torch.tensor([row['enzyme_conc']], dtype=torch.float32)
         substrate_conc = torch.tensor([row['substrate_conc']], dtype=torch.float32)
 
-        # 5. 真实标签 v0
+        # 5. Ground truth label v0
         v0 = torch.tensor([row['v0']], dtype=torch.float32)
 
         sample = {

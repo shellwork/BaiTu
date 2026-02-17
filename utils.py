@@ -11,10 +11,10 @@ except ImportError:
 
 def smiles_to_morgan_fingerprint(smiles, radius=2, nBits=2048):
     """
-    将 SMILES 字符串转换为 Morgan 指纹 (ECFP4)
+    Convert SMILES string to Morgan fingerprint (ECFP4)
     """
     if not HAS_RDKIT:
-        # 如果没有 RDKit，返回随机指纹用于测试
+        # If RDKit is not available, return random fingerprints for testing
         return np.random.randint(0, 2, size=(nBits,)).astype(np.float32)
 
     try:
@@ -32,11 +32,11 @@ def smiles_to_morgan_fingerprint(smiles, radius=2, nBits=2048):
 
 def generate_dummy_data(num_samples=100, output_path="data/kinetics_data.csv"):
     """
-    生成用于测试的假数据
+    Generate dummy data for testing
     """
     data = {
-        "enzyme_seq": ["MKAILV"] * num_samples,  # 简单的占位符序列
-        "substrate_smiles": ["CCO"] * num_samples, # 乙醇 SMILES
+        "enzyme_seq": ["MKAILV"] * num_samples,  # Simple placeholder sequence
+        "substrate_smiles": ["CCO"] * num_samples, # Ethanol SMILES
         "temperature": np.random.uniform(25, 40, num_samples),
         "ph": np.random.uniform(6, 8, num_samples),
         "salt_conc": np.random.uniform(0, 100, num_samples), # mM

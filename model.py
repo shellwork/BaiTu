@@ -5,33 +5,33 @@ from config import Config
 
 class MichaelisMentenLayer(nn.Module):
     """
-    模块三：物理机制映射层 (Physics-Informed Layer)
-    无训练参数，纯物理方程计算。
+    Module 3: Physics-Informed Layer
+    Pure mathematical logic with no trainable parameters.
     """
     def __init__(self):
         super().__init__()
 
     def forward(self, k_cat, K_m, enzyme_conc, substrate_conc):
         """
-        输入:
-            k_cat: (Batch, 1) 催化常数 [s^-1]
-            K_m:   (Batch, 1) 米氏常数 [uM]
-            enzyme_conc: (Batch, 1) 酶浓度 [E_total] [uM]
-            substrate_conc: (Batch, 1) 底物浓度 [S] [uM]
-        输出:
-            v0: (Batch, 1) 初始反应速率 [uM/s]
-        公式:
+        Inputs:
+            k_cat: (Batch, 1) Catalytic constant [s^-1]
+            K_m:   (Batch, 1) Michaelis constant [uM]
+            enzyme_conc: (Batch, 1) Total enzyme concentration [E_total] [uM]
+            substrate_conc: (Batch, 1) Substrate concentration [S] [uM]
+        Outputs:
+            v0: (Batch, 1) Initial reaction velocity [uM/s]
+        Formula:
             V_max = k_cat * [E]
             v0 = (V_max * [S]) / (K_m + [S])
         """
         V_max = k_cat * enzyme_conc
-        # 为了数值稳定性，分母加一个极小值 epsilon 防止除零
+        # Add epsilon to denominator for numerical stability to prevent division by zero
         v0 = (V_max * substrate_conc) / (K_m + substrate_conc + Config.EPSILON)
         return v0
 
 class KineticsPredictor(nn.Module):
     """
-    主模型：包含编码器融合、参数预测 MLP 和 物理层
+    Main Model: Includes encoder fusion, parameter prediction MLP, and physics layer.
     """
     def __init__(self, 
                  enzyme_dim=Config.ENZYME_DIM,    
@@ -41,11 +41,11 @@ class KineticsPredictor(nn.Module):
                  dropout=Config.DROPOUT):
         super().__init__()
         
-        # --- 1. 特征融合前的预处理 (解决模态失衡) ---
-        # 将不同模态映射到同一维度，利于特征对齐
+        # --- 1. Pre-processing before feature fusion (Addressing modality imbalance) ---
+        # Map different modalities to the same dimension for better alignment
         self.enzyme_projector = nn.Sequential(
             nn.Linear(enzyme_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim), # LayerNorm 有助于平衡不同模态的方差
+            nn.LayerNorm(hidden_dim), # LayerNorm helps balance variance across modalities
             nn.GELU()
         )
         self.substrate_projector = nn.Sequential(
@@ -54,18 +54,18 @@ class KineticsPredictor(nn.Module):
             nn.GELU()
         )
         self.condition_projector = nn.Sequential(
-            nn.Linear(condition_dim, hidden_dim // 4), # 条件维度通常较小
+            nn.Linear(condition_dim, hidden_dim // 4), # Condition dimension is usually smaller
             nn.LayerNorm(hidden_dim // 4),
             nn.GELU()
         )
 
-        # 计算融合后的总维度
+        # Calculate total dimension after fusion
         fusion_dim = hidden_dim + hidden_dim + (hidden_dim // 4)
 
-        # --- 2. 动力学参数预测网络 (MLP) ---
+        # --- 2. Kinetic Parameter Prediction Network (MLP) ---
         self.mlp = nn.Sequential(
             nn.Linear(fusion_dim, 512),
-            nn.BatchNorm1d(512), # 加上 BN 防止过拟合
+            nn.BatchNorm1d(512), # BatchNorm to prevent overfitting
             nn.GELU(),
             nn.Dropout(dropout),
             
@@ -73,42 +73,42 @@ class KineticsPredictor(nn.Module):
             nn.GELU(),
             nn.Dropout(dropout),
             
-            nn.Linear(256, 2) # 输出两个值: raw_k_cat, raw_K_m
+            nn.Linear(256, 2) # Outputs two values: raw_k_cat, raw_K_m
         )
 
-        # --- 3. 物理层 ---
+        # --- 3. Physics Layer ---
         self.physics_layer = MichaelisMentenLayer()
         self.predict_log_params = Config.PREDICT_LOG_PARAMS
 
     def forward(self, enzyme_embed, substrate_fp, conditions, enzyme_conc, substrate_conc):
         """
-        前向传播流程
+        Forward pass workflow
         """
-        # Step 1: 编码与投影
+        # Step 1: Encoding and Projection
         e_feat = self.enzyme_projector(enzyme_embed)
         s_feat = self.substrate_projector(substrate_fp)
         c_feat = self.condition_projector(conditions)
 
-        # Step 2: 特征融合 (Concatenation)
-        # 形状: (Batch, hidden*2 + hidden//4)
+        # Step 2: Feature Fusion (Concatenation)
+        # Shape: (Batch, hidden*2 + hidden//4)
         x_fused = torch.cat([e_feat, s_feat, c_feat], dim=1)
 
-        # Step 3: 预测动力学参数
+        # Step 3: Predict Kinetic Parameters
         raw_params = self.mlp(x_fused)
         
-        # 关键约束：解决量纲差异与数值稳定性
+        # Key Constraint: Addressing scale differences and numerical stability
         if self.predict_log_params:
-            # 如果预测的是 log 值，直接取 exp 还原到正数空间
-            # 这种方式天然保证输出为正，且梯度在 log 空间更平滑
+            # If predicting log values, use exp to restore to positive space
+            # This naturally ensures positive outputs and smoother gradients in log space
             k_cat = torch.exp(raw_params[:, 0:1]) 
             K_m = torch.exp(raw_params[:, 1:2])
         else:
-            # 否则使用 Softplus 确保参数为正
+            # Otherwise use Softplus to ensure parameters are positive
             k_cat = F.softplus(raw_params[:, 0:1]) 
             K_m = F.softplus(raw_params[:, 1:2])
 
-        # Step 4: 物理层计算 (无参数)
-        # 注意：这里需要传入酶浓度和底物浓度，它们是实验条件，不是模型参数
+        # Step 4: Physics Layer Computation (No trainable parameters)
+        # Note: Enzyme and substrate concentrations are experimental conditions, not model parameters
         v0_pred = self.physics_layer(k_cat, K_m, enzyme_conc, substrate_conc)
 
         return v0_pred, k_cat, K_m

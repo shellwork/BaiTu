@@ -8,16 +8,16 @@ from utils import generate_dummy_data
 import os
 
 def train():
-    # 0. 检查预处理数据是否存在，不存在则提示运行预处理
+    # 0. Check if preprocessed data exists, if not, prompt to run preprocessing
     if not os.path.exists(Config.PREPROCESSED_DATA_PATH):
         print(f"Preprocessed data not found at {Config.PREPROCESSED_DATA_PATH}.")
         print("Please run 'python preprocess_esm.py' first.")
         return
 
-    # 1. 准备数据
+    # 1. Prepare data
     dataloader = get_dataloader(batch_size=Config.BATCH_SIZE, shuffle=True)
     
-    # 2. 初始化模型
+    # 2. Initialize model
     model = KineticsPredictor(
         enzyme_dim=Config.ENZYME_DIM,
         substrate_dim=Config.SUBSTRATE_DIM,
@@ -26,18 +26,18 @@ def train():
         dropout=Config.DROPOUT
     ).to(Config.DEVICE)
 
-    # 3. 定义损失函数和优化器
+    # 3. Define loss function and optimizer
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=Config.LEARNING_RATE)
     
-    # 4. 训练循环
+    # 4. Training loop
     print(f"Starting training on {Config.DEVICE}...")
     for epoch in range(Config.NUM_EPOCHS):
         model.train()
         running_loss = 0.0
         
         for i, batch in enumerate(dataloader):
-            # 获取输入数据
+            # Get input data
             enzyme_embed = batch['enzyme_embed'].to(Config.DEVICE)
             substrate_fp = batch['substrate_fp'].to(Config.DEVICE)
             conditions = batch['conditions'].to(Config.DEVICE)
@@ -45,11 +45,11 @@ def train():
             substrate_conc = batch['substrate_conc'].to(Config.DEVICE)
             target_v0 = batch['v0'].to(Config.DEVICE)
 
-            # 梯度清零
+            # Zero gradients
             optimizer.zero_grad()
 
-            # 前向传播
-            # 注意: model 返回 (v0_pred, k_cat, K_m)
+            # Forward pass
+            # Note: model returns (v0_pred, k_cat, K_m)
             v0_pred, k_cat, K_m = model(
                 enzyme_embed, 
                 substrate_fp, 
@@ -58,23 +58,23 @@ def train():
                 substrate_conc
             )
 
-            # 计算损失
+            # Calculate loss
             loss = criterion(v0_pred, target_v0)
             
-            # 可选: 添加正则化项 (L2 penalty on parameters to prevent explosion)
+            # Optional: Add regularization (L2 penalty on parameters to prevent explosion)
             # loss += 0.01 * (torch.mean(k_cat**2) + torch.mean(K_m**2))
 
-            # 反向传播和优化
+            # Backward pass and optimization
             loss.backward()
             optimizer.step()
 
             running_loss += loss.item()
 
-            if i % 10 == 9:    # 每 10 个 batch 打印一次
+            if i % 10 == 9:    # Print every 10 batches
                 print(f'[Epoch {epoch + 1}, Batch {i + 1}] loss: {running_loss / 10:.4f}')
                 running_loss = 0.0
         
-        # 每个 epoch 结束后保存检查点
+        # Save checkpoint after each epoch
         if (epoch + 1) % 10 == 0:
             if not os.path.exists(Config.CHECKPOINT_DIR):
                 os.makedirs(Config.CHECKPOINT_DIR)

@@ -6,14 +6,14 @@ from tqdm import tqdm
 import os
 import argparse
 
-# 配置
-# 使用 ESM-2 8M 模型作为默认，因为它小且快 (dim=320)
+# Configuration
+# Using ESM-2 8M model as default for speed and low resource usage (dim=320)
 DEFAULT_MODEL_NAME = "facebook/esm2_t6_8M_UR50D"
 DATA_PATH = "data/kinetics_data.csv"
 OUTPUT_PATH = "data/kinetics_data_with_embeddings.pt"
 BATCH_SIZE = 32
 
-# 本地模型缓存路径
+# Local model cache directory
 MODEL_CACHE_DIR = "./esm_model_cache"
 
 def get_device():
@@ -26,7 +26,7 @@ def get_device():
 def preprocess_esm_embeddings(csv_path, output_path, model_name=DEFAULT_MODEL_NAME, batch_size=BATCH_SIZE):
     print(f"Loading data from {csv_path}...")
     if not os.path.exists(csv_path):
-        # 如果数据不存在，先生成假数据
+        # If data doesn't exist, generate dummy data first
         print("Data file not found. Generating dummy data first...")
         from utils import generate_dummy_data
         generate_dummy_data(num_samples=100, output_path=csv_path)
@@ -39,7 +39,7 @@ def preprocess_esm_embeddings(csv_path, output_path, model_name=DEFAULT_MODEL_NA
     device = get_device()
     print(f"Using device: {device}")
     
-    # 使用 local_files_only=False (默认) 第一次运行会下载，之后会从 cache_dir 加载
+    # Load tokenizer and model with local cache support
     tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=MODEL_CACHE_DIR)
     model = AutoModel.from_pretrained(model_name, cache_dir=MODEL_CACHE_DIR).to(device)
     model.eval()
@@ -61,13 +61,13 @@ def preprocess_esm_embeddings(csv_path, output_path, model_name=DEFAULT_MODEL_NA
             # Get Last Hidden State: (Batch, Seq_Len, Dim)
             last_hidden_state = outputs.last_hidden_state
             
-            # Mean Pooling (注意要忽略 padding token)
+            # Mean Pooling (ignoring padding tokens)
             attention_mask = inputs['attention_mask'] # (Batch, Seq_Len)
             
-            # 将 mask 扩展维度以匹配 hidden state
+            # Expand mask to match hidden state dimensions
             mask_expanded = attention_mask.unsqueeze(-1).expand(last_hidden_state.size()).float()
             
-            # sum(hidden * mask) / sum(mask)
+            # Compute: sum(hidden * mask) / sum(mask)
             sum_embeddings = torch.sum(last_hidden_state * mask_expanded, dim=1)
             sum_mask = torch.clamp(mask_expanded.sum(dim=1), min=1e-9)
             
@@ -80,8 +80,8 @@ def preprocess_esm_embeddings(csv_path, output_path, model_name=DEFAULT_MODEL_NA
     
     print(f"Embeddings computed. Shape: {all_embeddings.shape}")
     
-    # 保存数据
-    # 我们保存一个字典，包含原始 DataFrame 和 计算好的 Embeddings
+    # Save processed data
+    # We save a dictionary containing the original DataFrame and the precomputed Embeddings
     data_dict = {
         'dataframe': df,
         'enzyme_embeddings': all_embeddings,
