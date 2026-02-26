@@ -1,7 +1,7 @@
 import torch
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
-from config import Config
+from config import Config, TrypsinConfig
 from utils import smiles_to_morgan_fingerprint
 import os
 
@@ -76,4 +76,61 @@ class KineticsDataset(Dataset):
 
 def get_dataloader(batch_size=Config.BATCH_SIZE, shuffle=True):
     dataset = KineticsDataset()
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=0)
+
+
+# =============================================================================
+# Trypsin Active Learning Dataset
+# =============================================================================
+
+class TrypsinDataset(Dataset):
+    """
+    Minimal dataset for the trypsin closed-loop system.
+
+    Features:
+        temperature   : scalar, z-score normalised with TEMP_MEAN / TEMP_STD
+        substrate_conc: scalar [µM]
+    Target:
+        v0            : initial reaction velocity [µM/s]
+
+    The only input to the model is temperature — all enzyme-identity and
+    substrate-chemistry features from the general KineticsDataset are
+    dropped because we are locked to a single enzyme (trypsin) and the
+    Hill equation already encodes the substrate saturation curve via [S].
+    """
+    def __init__(self,
+                 csv_path:  str   = TrypsinConfig.TRYPSIN_DATA_PATH,
+                 temp_mean: float = TrypsinConfig.TEMP_MEAN,
+                 temp_std:  float = TrypsinConfig.TEMP_STD):
+        if not os.path.exists(csv_path):
+            raise FileNotFoundError(
+                f"Trypsin data not found at '{csv_path}'. "
+                "Run 'python data/generate_trypsin_data.py' first."
+            )
+        self.df        = pd.read_csv(csv_path)
+        self.temp_mean = temp_mean
+        self.temp_std  = temp_std
+        print(f"[TrypsinDataset] Loaded {len(self.df)} records from '{csv_path}'")
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        row = self.df.iloc[idx]
+
+        # Z-score normalise temperature so the MLP input lives near [-2, 2]
+        temp_norm = (row['temperature'] - self.temp_mean) / self.temp_std
+        temperature    = torch.tensor([temp_norm],           dtype=torch.float32)
+        substrate_conc = torch.tensor([row['substrate_conc']], dtype=torch.float32)
+        v0             = torch.tensor([row['v0']],             dtype=torch.float32)
+
+        return {'temperature': temperature, 'substrate_conc': substrate_conc, 'v0': v0}
+
+
+def get_trypsin_dataloader(csv_path:  str   = TrypsinConfig.TRYPSIN_DATA_PATH,
+                           batch_size: int  = TrypsinConfig.BATCH_SIZE,
+                           shuffle:   bool  = True,
+                           temp_mean: float = TrypsinConfig.TEMP_MEAN,
+                           temp_std:  float = TrypsinConfig.TEMP_STD):
+    dataset = TrypsinDataset(csv_path=csv_path, temp_mean=temp_mean, temp_std=temp_std)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=0)
