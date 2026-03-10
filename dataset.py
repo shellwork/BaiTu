@@ -1,28 +1,39 @@
+import math
+import os
 import torch
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from config import Config, TrypsinConfig
 from utils import smiles_to_morgan_fingerprint
-import os
 
 class KineticsDataset(Dataset):
+    """
+    读取动力学数据表，支持两类监督：
+    1. 参数监督: kcat / Km
+    2. 速率监督: 给定 [S] 下的 v0
+
+    期望列：
+    - Sequence / Smiles
+    - 可选: substrate_conc_m, enzyme_conc_m, v0
+    - 可选: kcat_s-1, km_m
+    """
     def __init__(self, pt_path=Config.PREPROCESSED_DATA_PATH, transform=None):
         """
         Args:
-            pt_path (string): Path to the preprocessed .pt file (containing embeddings and dataframe).
+            pt_path (string): Path to the preprocessed .pt file.
             transform (callable, optional): Optional transform to be applied on a sample.
         """
         if not os.path.exists(pt_path):
-            raise FileNotFoundError(f"Preprocessed data not found at {pt_path}. Please run preprocess_esm.py first.")
-            
-        print(f"Loading dataset from {pt_path}...")
-        data_dict = torch.load(pt_path)
-        
+            raise FileNotFoundError(
+                f"Preprocessed data not found at {pt_path}. "
+                f"Run: python preprocess_esm.py --csv_path {Config.DATA_PATH} --output_path {pt_path}"
+            )
+
+        print(f"Loading dataset from {pt_path} ...")
+        data_dict = torch.load(pt_path, weights_only=False)
         self.data_frame = data_dict['dataframe']
-        self.enzyme_embeddings = data_dict['enzyme_embeddings'] # Tensor (N, Dim)
+        self.enzyme_embeddings = data_dict['enzyme_embeddings']
         self.transform = transform
-        
-        # Verify data alignment
         assert len(self.data_frame) == len(self.enzyme_embeddings), "Dataframe and embeddings length mismatch!"
 
     def __len__(self):
@@ -33,49 +44,39 @@ class KineticsDataset(Dataset):
             idx = idx.tolist()
 
         row = self.data_frame.iloc[idx]
-        
-        # 1. Enzyme features (Directly from precomputed Tensor)
-        enzyme_embed = self.enzyme_embeddings[idx] # (Dim,)
+        enzyme_embed = self.enzyme_embeddings[idx]
 
-        # 2. Substrate features (Morgan Fingerprint) - Still computed on-the-fly as it's fast
-        substrate_smiles = row['substrate_smiles']
+        substrate_smiles = row.get('Smiles', row.get('substrate_smiles', ''))
         substrate_fp = smiles_to_morgan_fingerprint(substrate_smiles, nBits=Config.SUBSTRATE_DIM)
         substrate_fp = torch.tensor(substrate_fp, dtype=torch.float32)
 
-        # 3. Environmental conditions (Temperature, pH, Salt)
-        conditions = torch.tensor([
-            row['temperature'], 
-            row['ph'], 
-            row['salt_conc']
-        ], dtype=torch.float32)
-        
-        # Simple normalization (Z-score normalization)
-        # Assuming mean/std values for demonstration; should be based on dataset statistics in production
-        conditions = (conditions - torch.tensor([30.0, 7.0, 50.0])) / torch.tensor([5.0, 1.0, 20.0])
-
-        # 4. Experimental setup (Variables for physics equation)
-        enzyme_conc = torch.tensor([row['enzyme_conc']], dtype=torch.float32)
-        substrate_conc = torch.tensor([row['substrate_conc']], dtype=torch.float32)
-
-        # 5. Ground truth label v0
-        v0 = torch.tensor([row['v0']], dtype=torch.float32)
+        substrate_conc = float(row.get('substrate_conc_m', row.get('substrate_conc', 0.0)))
+        enzyme_conc = float(row.get('enzyme_conc_m', Config.ENZYME_CONC_M))
 
         sample = {
             'enzyme_embed': enzyme_embed,
             'substrate_fp': substrate_fp,
-            'conditions': conditions,
-            'enzyme_conc': enzyme_conc,
-            'substrate_conc': substrate_conc,
-            'v0': v0
+            'substrate_conc': torch.tensor([substrate_conc], dtype=torch.float32),
+            'enzyme_conc': torch.tensor([enzyme_conc], dtype=torch.float32),
+            'has_param_label': torch.tensor([0.0], dtype=torch.float32),
+            'has_rate_label': torch.tensor([0.0], dtype=torch.float32),
         }
+
+        if 'kcat_s-1' in row and 'km_m' in row and pd.notna(row['kcat_s-1']) and pd.notna(row['km_m']):
+            sample['log_kcat'] = torch.tensor([math.log(float(row['kcat_s-1']) + Config.LOG_EPSILON)], dtype=torch.float32)
+            sample['log_km'] = torch.tensor([math.log(float(row['km_m']) + Config.LOG_EPSILON)], dtype=torch.float32)
+            sample['has_param_label'] = torch.tensor([1.0], dtype=torch.float32)
+
+        if 'v0' in row and pd.notna(row['v0']):
+            sample['v0'] = torch.tensor([float(row['v0'])], dtype=torch.float32)
+            sample['has_rate_label'] = torch.tensor([1.0], dtype=torch.float32)
 
         if self.transform:
             sample = self.transform(sample)
-
         return sample
 
-def get_dataloader(batch_size=Config.BATCH_SIZE, shuffle=True):
-    dataset = KineticsDataset()
+def get_dataloader(batch_size=Config.BATCH_SIZE, shuffle=True, pt_path=Config.PREPROCESSED_DATA_PATH):
+    dataset = KineticsDataset(pt_path=pt_path)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=0)
 
 

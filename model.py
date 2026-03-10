@@ -5,47 +5,39 @@ from config import Config, TrypsinConfig
 
 class MichaelisMentenLayer(nn.Module):
     """
-    Module 3: Physics-Informed Layer
-    Pure mathematical logic with no trainable parameters.
+    非可训练物理层：
+    将模型预测的 kcat / Km 映射为给定实验条件下的反应速率。
     """
-    def __init__(self):
+    def __init__(self, epsilon: float = Config.EPSILON):
         super().__init__()
+        self.epsilon = epsilon
 
-    def forward(self, k_cat, K_m, enzyme_conc, substrate_conc):
-        """
-        Inputs:
-            k_cat: (Batch, 1) Catalytic constant [s^-1]
-            K_m:   (Batch, 1) Michaelis constant [uM]
-            enzyme_conc: (Batch, 1) Total enzyme concentration [E_total] [uM]
-            substrate_conc: (Batch, 1) Substrate concentration [S] [uM]
-        Outputs:
-            v0: (Batch, 1) Initial reaction velocity [uM/s]
-        Formula:
-            V_max = k_cat * [E]
-            v0 = (V_max * [S]) / (K_m + [S])
-        """
-        V_max = k_cat * enzyme_conc
-        # Add epsilon to denominator for numerical stability to prevent division by zero
-        v0 = (V_max * substrate_conc) / (K_m + substrate_conc + Config.EPSILON)
-        return v0
+    def forward(self, kcat, km, enzyme_conc, substrate_conc):
+        substrate_conc = torch.clamp(substrate_conc, min=self.epsilon)
+        enzyme_conc = torch.clamp(enzyme_conc, min=self.epsilon)
+        vmax = kcat * enzyme_conc
+        return (vmax * substrate_conc) / (km + substrate_conc + self.epsilon)
+
 
 class KineticsPredictor(nn.Module):
     """
-    Main Model: Includes encoder fusion, parameter prediction MLP, and physics layer.
+    参数预测主干：
+    输入: [E_emb, S_emb]
+    输出: kcat / Km
+
+    当提供底物浓度和酶浓度时，额外返回对应的速率预测 v0_pred，
+    这样同一个模型既能用于参数监督，也能用于真实实验速率监督。
     """
-    def __init__(self, 
-                 enzyme_dim=Config.ENZYME_DIM,    
-                 substrate_dim=Config.SUBSTRATE_DIM, 
-                 condition_dim=Config.CONDITION_DIM,    
+    def __init__(self,
+                 enzyme_dim=Config.ENZYME_DIM,
+                 substrate_dim=Config.SUBSTRATE_DIM,
                  hidden_dim=Config.HIDDEN_DIM,
                  dropout=Config.DROPOUT):
         super().__init__()
-        
-        # --- 1. Pre-processing before feature fusion (Addressing modality imbalance) ---
-        # Map different modalities to the same dimension for better alignment
+
         self.enzyme_projector = nn.Sequential(
             nn.Linear(enzyme_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim), # LayerNorm helps balance variance across modalities
+            nn.LayerNorm(hidden_dim),
             nn.GELU()
         )
         self.substrate_projector = nn.Sequential(
@@ -53,65 +45,45 @@ class KineticsPredictor(nn.Module):
             nn.LayerNorm(hidden_dim),
             nn.GELU()
         )
-        self.condition_projector = nn.Sequential(
-            nn.Linear(condition_dim, hidden_dim // 4), # Condition dimension is usually smaller
-            nn.LayerNorm(hidden_dim // 4),
-            nn.GELU()
-        )
-
-        # Calculate total dimension after fusion
-        fusion_dim = hidden_dim + hidden_dim + (hidden_dim // 4)
-
-        # --- 2. Kinetic Parameter Prediction Network (MLP) ---
-        self.mlp = nn.Sequential(
+        fusion_dim = hidden_dim + hidden_dim
+        self.trunk = nn.Sequential(
             nn.Linear(fusion_dim, 512),
-            nn.BatchNorm1d(512), # BatchNorm to prevent overfitting
+            nn.BatchNorm1d(512),
             nn.GELU(),
             nn.Dropout(dropout),
-            
             nn.Linear(512, 256),
             nn.GELU(),
             nn.Dropout(dropout),
-            
-            nn.Linear(256, 2) # Outputs two values: raw_k_cat, raw_K_m
         )
-
-        # --- 3. Physics Layer ---
+        self.kcat_head = nn.Linear(256, 1)
+        self.km_head = nn.Linear(256, 1)
         self.physics_layer = MichaelisMentenLayer()
-        self.predict_log_params = Config.PREDICT_LOG_PARAMS
 
-    def forward(self, enzyme_embed, substrate_fp, conditions, enzyme_conc, substrate_conc):
-        """
-        Forward pass workflow
-        """
-        # Step 1: Encoding and Projection
+    def forward(self, enzyme_embed, substrate_fp, substrate_conc=None, enzyme_conc=None):
         e_feat = self.enzyme_projector(enzyme_embed)
         s_feat = self.substrate_projector(substrate_fp)
-        c_feat = self.condition_projector(conditions)
+        x_fused = torch.cat([e_feat, s_feat], dim=1)
+        hidden = self.trunk(x_fused)
 
-        # Step 2: Feature Fusion (Concatenation)
-        # Shape: (Batch, hidden*2 + hidden//4)
-        x_fused = torch.cat([e_feat, s_feat, c_feat], dim=1)
+        log_kcat = self.kcat_head(hidden)
+        log_km = self.km_head(hidden)
+        kcat = torch.exp(log_kcat)
+        km = torch.exp(log_km)
 
-        # Step 3: Predict Kinetic Parameters
-        raw_params = self.mlp(x_fused)
-        
-        # Key Constraint: Addressing scale differences and numerical stability
-        if self.predict_log_params:
-            # If predicting log values, use exp to restore to positive space
-            # This naturally ensures positive outputs and smoother gradients in log space
-            k_cat = torch.exp(raw_params[:, 0:1]) 
-            K_m = torch.exp(raw_params[:, 1:2])
-        else:
-            # Otherwise use Softplus to ensure parameters are positive
-            k_cat = F.softplus(raw_params[:, 0:1]) 
-            K_m = F.softplus(raw_params[:, 1:2])
+        outputs = {
+            "log_kcat": log_kcat,
+            "log_km": log_km,
+            "kcat": kcat,
+            "km": km,
+        }
 
-        # Step 4: Physics Layer Computation (No trainable parameters)
-        # Note: Enzyme and substrate concentrations are experimental conditions, not model parameters
-        v0_pred = self.physics_layer(k_cat, K_m, enzyme_conc, substrate_conc)
+        if substrate_conc is not None and enzyme_conc is not None:
+            outputs["v0_pred"] = self.physics_layer(kcat, km, enzyme_conc, substrate_conc)
 
-        return v0_pred, k_cat, K_m
+        return outputs
+
+    def generate_rate_curve(self, kcat, km, enzyme_conc, substrate_grid):
+        return self.physics_layer(kcat, km, enzyme_conc, substrate_grid)
 
 
 # =============================================================================

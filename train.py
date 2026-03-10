@@ -2,91 +2,157 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
+from sklearn.metrics import r2_score, mean_absolute_error
+from torch.utils.data import random_split
 from config import Config, TrypsinConfig
 from model import KineticsPredictor, TrypsinEnsemble
 from dataset import get_dataloader, get_trypsin_dataloader
-from utils import generate_dummy_data
+
+def evaluate(model, dataloader, device):
+    model.eval()
+    all_targets_v0 = []
+    all_preds_v0 = []
+    all_targets_kcat = []
+    all_preds_kcat = []
+    all_targets_km = []
+    all_preds_km = []
+    
+    with torch.no_grad():
+        for batch in dataloader:
+            enzyme_embed = batch['enzyme_embed'].to(device)
+            substrate_fp = batch['substrate_fp'].to(device)
+            substrate_conc = batch['substrate_conc'].to(device)
+            enzyme_conc = batch['enzyme_conc'].to(device)
+            
+            outputs = model(
+                enzyme_embed,
+                substrate_fp,
+                substrate_conc=substrate_conc,
+                enzyme_conc=enzyme_conc,
+            )
+            
+            # v0 metrics
+            if batch['has_rate_label'].any():
+                mask = batch['has_rate_label'].squeeze(-1) > 0
+                all_targets_v0.append(batch['v0'][mask].cpu().numpy())
+                all_preds_v0.append(outputs['v0_pred'][mask].cpu().numpy())
+            
+            # kcat/km metrics
+            if batch['has_param_label'].any():
+                mask = batch['has_param_label'].squeeze(-1) > 0
+                all_targets_kcat.append(torch.exp(batch['log_kcat'][mask]).cpu().numpy())
+                all_preds_kcat.append(outputs['kcat'][mask].cpu().numpy())
+                all_targets_km.append(torch.exp(batch['log_km'][mask]).cpu().numpy())
+                all_preds_km.append(outputs['km'][mask].cpu().numpy())
+
+    metrics = {}
+    
+    def calc_reg_metrics(targets, preds, prefix):
+        if len(targets) == 0: return
+        t = np.concatenate(targets).flatten()
+        p = np.concatenate(preds).flatten()
+        metrics[f'{prefix}_r2'] = r2_score(t, p)
+        metrics[f'{prefix}_mae'] = mean_absolute_error(t, p)
+        # 准确率近似：预测值在真值 50% 到 150% 范围内的比例
+        metrics[f'{prefix}_acc'] = np.mean((p > 0.5 * t) & (p < 1.5 * t))
+
+    calc_reg_metrics(all_targets_v0, all_preds_v0, 'v0')
+    calc_reg_metrics(all_targets_kcat, all_preds_kcat, 'kcat')
+    calc_reg_metrics(all_targets_km, all_preds_km, 'km')
+    
+    return metrics
 
 def train():
-    # 0. Check if preprocessed data exists, if not, prompt to run preprocessing
-    if not os.path.exists(Config.PREPROCESSED_DATA_PATH):
-        print(f"Preprocessed data not found at {Config.PREPROCESSED_DATA_PATH}.")
-        print("Please run 'python preprocess_esm.py' first.")
+    pt_path = Config.PREPROCESSED_DATA_PATH
+
+    if not os.path.exists(pt_path):
+        print(f"Preprocessed data not found at {pt_path}.")
+        print(f"Run: python preprocess_esm.py --csv_path {Config.DATA_PATH} --output_path {pt_path}")
         return
 
-    # 1. Prepare data
-    dataloader = get_dataloader(batch_size=Config.BATCH_SIZE, shuffle=True)
+    # 分离训练集和验证集
+    full_dataset = get_dataloader(batch_size=Config.BATCH_SIZE, shuffle=False).dataset
+    train_size = int(0.8 * len(full_dataset))
+    val_size = len(full_dataset) - train_size
+    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
     
-    # 2. Initialize model
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=Config.BATCH_SIZE, shuffle=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=Config.BATCH_SIZE, shuffle=False)
+
     model = KineticsPredictor(
         enzyme_dim=Config.ENZYME_DIM,
         substrate_dim=Config.SUBSTRATE_DIM,
-        condition_dim=Config.CONDITION_DIM,
         hidden_dim=Config.HIDDEN_DIM,
         dropout=Config.DROPOUT
     ).to(Config.DEVICE)
 
-    # 3. Define loss function and optimizer
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=Config.LEARNING_RATE)
-    
-    # 4. Training loop
-    print(f"Starting training on {Config.DEVICE}...")
+
+    print(f"Starting training on {Config.DEVICE} (Task: parameter prediction + rate supervision)...")
+
     for epoch in range(Config.NUM_EPOCHS):
         model.train()
         running_loss = 0.0
-        
-        for i, batch in enumerate(dataloader):
-            # Get input data
+
+        for i, batch in enumerate(train_loader):
             enzyme_embed = batch['enzyme_embed'].to(Config.DEVICE)
             substrate_fp = batch['substrate_fp'].to(Config.DEVICE)
-            conditions = batch['conditions'].to(Config.DEVICE)
-            enzyme_conc = batch['enzyme_conc'].to(Config.DEVICE)
             substrate_conc = batch['substrate_conc'].to(Config.DEVICE)
-            target_v0 = batch['v0'].to(Config.DEVICE)
+            enzyme_conc = batch['enzyme_conc'].to(Config.DEVICE)
+            has_param_label = batch['has_param_label'].to(Config.DEVICE).squeeze(-1) > 0
+            has_rate_label = batch['has_rate_label'].to(Config.DEVICE).squeeze(-1) > 0
 
-            # Zero gradients
+            if not (has_param_label.any() or has_rate_label.any()):
+                continue
+
             optimizer.zero_grad()
-
-            # Forward pass
-            # Note: model returns (v0_pred, k_cat, K_m)
-            v0_pred, k_cat, K_m = model(
-                enzyme_embed, 
-                substrate_fp, 
-                conditions, 
-                enzyme_conc, 
-                substrate_conc
+            outputs = model(
+                enzyme_embed,
+                substrate_fp,
+                substrate_conc=substrate_conc,
+                enzyme_conc=enzyme_conc,
             )
 
-            # Calculate loss
-            loss = criterion(v0_pred, target_v0)
+            loss = torch.tensor(0.0, device=Config.DEVICE)
             
-            # Optional: Add regularization (L2 penalty on parameters to prevent explosion)
-            # loss += 0.01 * (torch.mean(k_cat**2) + torch.mean(K_m**2))
+            if has_param_label.any():
+                target_log_kcat = batch['log_kcat'].to(Config.DEVICE)[has_param_label]
+                target_log_km = batch['log_km'].to(Config.DEVICE)[has_param_label]
+                pred_log_kcat = outputs['log_kcat'][has_param_label]
+                pred_log_km = outputs['log_km'][has_param_label]
+                param_loss = criterion(pred_log_kcat, target_log_kcat) + criterion(pred_log_km, target_log_km)
+                loss = loss + Config.PARAM_LOSS_WEIGHT * param_loss
 
-            # Backward pass and optimization
+            if has_rate_label.any():
+                target_v0 = batch['v0'].to(Config.DEVICE)[has_rate_label]
+                pred_v0 = outputs['v0_pred'][has_rate_label]
+                rate_loss = criterion(pred_v0, target_v0)
+                loss = loss + Config.RATE_LOSS_WEIGHT * rate_loss
+
             loss.backward()
             optimizer.step()
-
             running_loss += loss.item()
 
-            if i % 10 == 9:    # Print every 10 batches
-                print(f'[Epoch {epoch + 1}, Batch {i + 1}] loss: {running_loss / 10:.4f}')
-                running_loss = 0.0
+        # 每个 Epoch 结束后进行评估
+        val_metrics = evaluate(model, val_loader, Config.DEVICE)
         
-        # Save checkpoint after each epoch
+        log_str = f'Epoch {epoch + 1}/{Config.NUM_EPOCHS} | Loss: {running_loss/len(train_loader):.4f}'
+        if 'v0_r2' in val_metrics:
+            log_str += f" | v0_R2: {val_metrics['v0_r2']:.4f} | v0_Acc: {val_metrics['v0_acc']:.2%}"
+        if 'km_r2' in val_metrics:
+            log_str += f" | Km_R2: {val_metrics['km_r2']:.4f} | kcat_R2: {val_metrics['kcat_r2']:.4f}"
+        print(log_str)
+
         if (epoch + 1) % 10 == 0:
             if not os.path.exists(Config.CHECKPOINT_DIR):
                 os.makedirs(Config.CHECKPOINT_DIR)
-            checkpoint_path = os.path.join(Config.CHECKPOINT_DIR, f'model_epoch_{epoch+1}.pth')
+            checkpoint_path = os.path.join(Config.CHECKPOINT_DIR, f'model_epoch_{epoch+1}_params.pth')
             torch.save(model.state_dict(), checkpoint_path)
             print(f"Saved checkpoint to {checkpoint_path}")
 
     print('Finished Training')
-
-if __name__ == '__main__':
-    train()
-
 
 # =============================================================================
 # Trypsin Ensemble Training  (Step 1 + 2 of the active learning workflow)
@@ -176,7 +242,6 @@ def train_trypsin_ensemble(
 
 
 if __name__ == '__main__':
-    # Entry point for trypsin ensemble training
-    trained_ensemble = train_trypsin_ensemble()
-    if trained_ensemble is not None:
-        print("\nEnsemble ready. Run active_learning.py to query the next experiment.")
+    # 默认运行 Km 直接预测训练 (PREDICT_KM_DIRECT=True)
+    # Trypsin 主动学习: from train import train_trypsin_ensemble; train_trypsin_ensemble()
+    train()

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 try:
     from rdkit import Chem
-    from rdkit.Chem import AllChem
+    from rdkit.Chem import AllChem, rdFingerprintGenerator
     HAS_RDKIT = True
 except ImportError:
     HAS_RDKIT = False
@@ -12,7 +12,7 @@ except ImportError:
 
 def smiles_to_morgan_fingerprint(smiles, radius=2, nBits=2048):
     """
-    Convert SMILES string to Morgan fingerprint (ECFP4)
+    Convert SMILES string to Morgan fingerprint (ECFP4) using the new MorganGenerator API.
     """
     if not HAS_RDKIT:
         # If RDKit is not available, return random fingerprints for testing
@@ -23,10 +23,15 @@ def smiles_to_morgan_fingerprint(smiles, radius=2, nBits=2048):
         if mol is None:
             return np.zeros((nBits,), dtype=np.float32)
         
-        fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius, nBits=nBits)
-        arr = np.zeros((0,), dtype=np.int8)
-        Chem.DataStructs.ConvertToNumpyArray(fp, arr)
-        return arr.astype(np.float32)
+        # 使用新的 MorganGenerator 接口
+        gen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=nBits)
+        fp = gen.GetFingerprint(mol)
+        
+        # 转换为 Numpy 数组
+        arr = np.zeros((nBits,), dtype=np.float32)
+        from rdkit import DataStructs
+        DataStructs.ConvertToNumpyArray(fp, arr)
+        return arr
     except Exception as e:
         print(f"Error processing SMILES {smiles}: {e}")
         return np.zeros((nBits,), dtype=np.float32)

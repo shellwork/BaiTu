@@ -2,9 +2,20 @@ import torch
 
 class Config:
     # Data paths
-    DATA_PATH = "data/kinetics_data.csv"
-    PREPROCESSED_DATA_PATH = "data/kinetics_data_with_embeddings.pt"
+    DATA_PATH = "data/kinetics_simulated_from_km_kcat.csv"
+    PREPROCESSED_DATA_PATH = "data/kinetics_simulated_with_embeddings.pt"
+    ALIGNED_PARAM_DATA_PATH = "data/aligned_km_kcat_pairs.csv"
+    KM_DATA_PATH = "data/Km-data_0.4simi-10fold.csv"
+    KCAT_DATA_PATH = "data/kcat-data_0.4simi-10fold.csv"
     CHECKPOINT_DIR = "checkpoints"
+
+    # Synthetic kinetics generation
+    ENZYME_CONC_M = 1e-6
+    N_SUBSTRATE_POINTS = 16
+    SUBSTRATE_MIN_RATIO = 0.05
+    SUBSTRATE_MAX_RATIO = 20.0
+    RATE_NOISE_STD = 0.03
+    LOG_EPSILON = 1e-12
 
     # Model hyperparameters
     # If using a larger model, update ENZYME_DIM accordingly:
@@ -14,7 +25,6 @@ class Config:
     # t33_650M_UR50D: 1280
     ENZYME_DIM = 320        # ESM-2 8M dimension
     SUBSTRATE_DIM = 2048    # Morgan Fingerprint dimension (radius=3, nBits=2048)
-    CONDITION_DIM = 3       # Temperature(T), pH, Salt concentration
     HIDDEN_DIM = 256        # Projection layer dimension
     DROPOUT = 0.2
 
@@ -24,9 +34,10 @@ class Config:
     NUM_EPOCHS = 100
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Physics constraints and stability
-    PREDICT_LOG_PARAMS = True  # Predict log(k_cat) and log(Km) for numerical stability
-    EPSILON = 1e-8             # Small value to prevent division by zero
+    # Numerical stability
+    EPSILON = 1e-8
+    PARAM_LOSS_WEIGHT = 1.0
+    RATE_LOSS_WEIGHT = 1.0
 
 
 class TrypsinConfig:

@@ -32,7 +32,9 @@ def preprocess_esm_embeddings(csv_path, output_path, model_name=DEFAULT_MODEL_NA
         generate_dummy_data(num_samples=100, output_path=csv_path)
 
     df = pd.read_csv(csv_path)
-    sequences = df['enzyme_seq'].tolist()
+    # 支持 kinetics 格式 (enzyme_seq) 或 Km 数据格式 (Sequence)
+    seq_col = 'Sequence' if 'Sequence' in df.columns else 'enzyme_seq'
+    sequences = df[seq_col].tolist()
     
     print(f"Loading ESM-2 model: {model_name}...")
     print(f"Model will be cached in: {MODEL_CACHE_DIR}")
