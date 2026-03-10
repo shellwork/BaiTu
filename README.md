@@ -62,3 +62,27 @@ python train.py
 - **Modality Balance**: Uses LayerNorm and projection layers to balance high-dimensional enzyme embeddings and sparse molecular fingerprints.
 - **Direct Regression**: Removes the in-model physics layer and predicts $v_0$ directly from fused features.
 - **Metadata Preserved**: Keeps EC / Organism / UniProtID for downstream active-learning analysis.
+
+
+## Demo Inference & Streamlit UI
+
+1. **Single-sample inference (same I/O schema as training):**
+
+   ```bash
+   python inference_demo.py \
+     --checkpoint checkpoints/model_epoch_100_params.pth \
+     --sequence MKT... \
+     --smiles CCO \
+     --substrate_conc_m 1e-4 \
+     --enzyme_conc_m 1e-6
+   ```
+
+   Output keys are aligned with training targets: `log_kcat`, `log_km`, `kcat_s-1`, `km_m`, `v0`.
+
+2. **Launch Streamlit app for interactive prediction + curve visualization:**
+
+   ```bash
+   streamlit run streamlit_demo.py
+   ```
+
+   In the UI, users can input sequence/SMILES/concentrations, run prediction, and view the Michaelis-Menten rate curve.
