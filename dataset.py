@@ -8,14 +8,14 @@ from utils import smiles_to_morgan_fingerprint
 
 class KineticsDataset(Dataset):
     """
-    读取动力学数据表，支持两类监督：
-    1. 参数监督: kcat / Km
-    2. 速率监督: 给定 [S] 下的 v0
+    Load kinetics rows with two supervision types:
+    1. Parameter supervision: kcat / Km
+    2. Rate supervision: v0 at a given [S]
 
-    期望列：
+    Expected columns:
     - Sequence / Smiles
-    - 可选: substrate_conc_m, enzyme_conc_m, v0
-    - 可选: kcat_s-1, km_m
+    - Optional: substrate_conc_m, enzyme_conc_m, v0
+    - Optional: kcat_s-1, km_m
     """
     def __init__(self, pt_path=Config.PREPROCESSED_DATA_PATH, transform=None):
         """

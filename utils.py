@@ -23,11 +23,11 @@ def smiles_to_morgan_fingerprint(smiles, radius=2, nBits=2048):
         if mol is None:
             return np.zeros((nBits,), dtype=np.float32)
         
-        # 使用新的 MorganGenerator 接口
+        # Use the new MorganGenerator API
         gen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=nBits)
         fp = gen.GetFingerprint(mol)
         
-        # 转换为 Numpy 数组
+        # Convert to a NumPy array
         arr = np.zeros((nBits,), dtype=np.float32)
         from rdkit import DataStructs
         DataStructs.ConvertToNumpyArray(fp, arr)
