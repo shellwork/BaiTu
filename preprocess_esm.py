@@ -32,7 +32,7 @@ def preprocess_esm_embeddings(csv_path, output_path, model_name=DEFAULT_MODEL_NA
         generate_dummy_data(num_samples=100, output_path=csv_path)
 
     df = pd.read_csv(csv_path)
-    # 支持 kinetics 格式 (enzyme_seq) 或 Km 数据格式 (Sequence)
+    # Supports both kinetics format (enzyme_seq) and Km format (Sequence)
     seq_col = 'Sequence' if 'Sequence' in df.columns else 'enzyme_seq'
     sequences = df[seq_col].tolist()
     

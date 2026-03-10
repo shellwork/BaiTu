@@ -5,8 +5,8 @@ from config import Config, TrypsinConfig
 
 class MichaelisMentenLayer(nn.Module):
     """
-    非可训练物理层：
-    将模型预测的 kcat / Km 映射为给定实验条件下的反应速率。
+    Non-trainable physics layer:
+    maps predicted kcat / Km to reaction rate under given conditions.
     """
     def __init__(self, epsilon: float = Config.EPSILON):
         super().__init__()
@@ -21,12 +21,13 @@ class MichaelisMentenLayer(nn.Module):
 
 class KineticsPredictor(nn.Module):
     """
-    参数预测主干：
-    输入: [E_emb, S_emb]
-    输出: kcat / Km
+    Main backbone for kinetic-parameter prediction:
+    Input: [E_emb, S_emb]
+    Output: kcat / Km
 
-    当提供底物浓度和酶浓度时，额外返回对应的速率预测 v0_pred，
-    这样同一个模型既能用于参数监督，也能用于真实实验速率监督。
+    When substrate and enzyme concentrations are provided, it also returns
+    the corresponding rate prediction v0_pred, so one model supports both
+    parameter supervision and experimental rate supervision.
     """
     def __init__(self,
                  enzyme_dim=Config.ENZYME_DIM,

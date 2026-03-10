@@ -54,7 +54,7 @@ def evaluate(model, dataloader, device):
         p = np.concatenate(preds).flatten()
         metrics[f'{prefix}_r2'] = r2_score(t, p)
         metrics[f'{prefix}_mae'] = mean_absolute_error(t, p)
-        # 准确率近似：预测值在真值 50% 到 150% 范围内的比例
+        # Approximate accuracy: fraction of predictions within 50%~150% of the ground truth
         metrics[f'{prefix}_acc'] = np.mean((p > 0.5 * t) & (p < 1.5 * t))
 
     calc_reg_metrics(all_targets_v0, all_preds_v0, 'v0')
@@ -71,7 +71,7 @@ def train():
         print(f"Run: python preprocess_esm.py --csv_path {Config.DATA_PATH} --output_path {pt_path}")
         return
 
-    # 分离训练集和验证集
+    # Split into train/validation sets
     full_dataset = get_dataloader(batch_size=Config.BATCH_SIZE, shuffle=False).dataset
     train_size = int(0.8 * len(full_dataset))
     val_size = len(full_dataset) - train_size
@@ -135,7 +135,7 @@ def train():
             optimizer.step()
             running_loss += loss.item()
 
-        # 每个 Epoch 结束后进行评估
+        # Evaluate at the end of each epoch
         val_metrics = evaluate(model, val_loader, Config.DEVICE)
         
         log_str = f'Epoch {epoch + 1}/{Config.NUM_EPOCHS} | Loss: {running_loss/len(train_loader):.4f}'
@@ -242,6 +242,6 @@ def train_trypsin_ensemble(
 
 
 if __name__ == '__main__':
-    # 默认运行 Km 直接预测训练 (PREDICT_KM_DIRECT=True)
-    # Trypsin 主动学习: from train import train_trypsin_ensemble; train_trypsin_ensemble()
+    # Default entrypoint runs direct Km prediction training (PREDICT_KM_DIRECT=True)
+    # Trypsin active learning: from train import train_trypsin_ensemble; train_trypsin_ensemble()
     train()

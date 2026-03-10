@@ -22,9 +22,9 @@ def _read_and_prepare(path: str, value_col: str, new_name: str) -> pd.DataFrame:
     cols = [c for c in JOIN_KEYS if c in df.columns] + [value_col]
     missing = [c for c in JOIN_KEYS if c not in df.columns]
     if missing:
-        raise ValueError(f"{path} 缺少关键列: {missing}")
+        raise ValueError(f"{path} is missing required key columns: {missing}")
     if value_col not in df.columns:
-        raise ValueError(f"{path} 缺少参数列: {value_col}")
+        raise ValueError(f"{path} is missing parameter column: {value_col}")
     out = df[cols].copy()
     out = out.rename(columns={value_col: new_name})
     return out
@@ -58,7 +58,7 @@ def expand_to_kinetics_rows(
         kcat = float(r["kcat_s-1"])
         vmax = kcat * enzyme_conc_m
 
-        # 以 Km 为中心生成对数间隔的底物浓度
+        # Generate log-spaced substrate concentrations centered around Km
         substrate_grid = np.geomspace(
             km * min_ratio,
             km * max_ratio,
@@ -86,7 +86,7 @@ def expand_to_kinetics_rows(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="对齐 Km/kcat 并生成动力学模拟训练表")
+    parser = argparse.ArgumentParser(description="Align Km/kcat tables and generate simulated kinetics training rows")
     parser.add_argument("--km_path", type=str, default="data/Km-data_0.4simi-10fold.csv")
     parser.add_argument("--kcat_path", type=str, default="data/kcat-data_0.4simi-10fold.csv")
     parser.add_argument("--output_path", type=str, default="data/kinetics_simulated_from_km_kcat.csv")
@@ -97,13 +97,13 @@ def main():
     parser.add_argument("--max_ratio", type=float, default=20.0)
     parser.add_argument("--noise_std", type=float, default=0.03)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--max_pairs", type=int, default=0, help=">0 时仅使用前 N 条对齐后的酶-底物对")
-    parser.add_argument("--sample_fraction", type=float, default=1.0, help="在对齐对中随机抽样的比例，范围 (0,1]")
+    parser.add_argument("--max_pairs", type=int, default=0, help=">0 means only using the first N aligned enzyme-substrate pairs")
+    parser.add_argument("--sample_fraction", type=float, default=1.0, help="Random sampling ratio over aligned pairs, range (0,1]")
     args = parser.parse_args()
 
     aligned = build_aligned_table(args.km_path, args.kcat_path)
     if aligned.empty:
-        raise RuntimeError("Km/kcat 对齐后为空，请检查两表的键列是否一致。")
+        raise RuntimeError("No aligned Km/kcat pairs found. Please verify key columns match across both tables.")
     rng = np.random.default_rng(args.seed)
     if 0 < args.sample_fraction < 1.0:
         n_keep = max(1, int(len(aligned) * args.sample_fraction))
