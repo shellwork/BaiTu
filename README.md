@@ -113,3 +113,43 @@ python train.py
    ```
 
    In the UI, users can input sequence/SMILES/concentrations, run prediction, and view the Michaelis-Menten rate curve.
+
+
+## Phase-2 Implementation Upgrade (Ensemble + Contribution Scoring)
+
+The codebase now includes a more complete active-learning backbone aligned with the two-stage roadmap:
+
+1. **Deep Ensemble for uncertainty**
+   - `train.py` adds `train_deep_ensemble(...)` for training multiple independent `KineticsPredictor` members.
+   - Ensemble disagreement is converted to epistemic uncertainty (variance of `v0_pred`, and other heads when needed).
+
+2. **Contribution Scoring for real-data acquisition**
+   - `active_learning.py` is upgraded to a generic scoring module:
+     - `score_pool_by_uncertainty(...)`
+     - `score_pool_contribution(...)`
+     - `select_top_k(...)`
+   - Contribution score combines three signals:
+     - uncertainty (ensemble variance)
+     - novelty (distance from labeled set in latent space)
+     - representativeness (similarity to pool centroid)
+
+3. **Round-level active-learning interface**
+   - `train.py` adds `run_active_learning_round(...)`:
+     - train ensemble on current labeled set
+     - score unlabeled pool by contribution
+     - return top-k candidates for experiment
+
+### Suggested Phase-2 loop
+
+```python
+# pseudo workflow
+selected_idx, score_detail = run_active_learning_round(
+    labeled_dataset=labeled_ds,
+    pool_dataset=pool_ds,
+    query_size=32,
+    n_members=5,
+)
+# send selected_idx to lab -> collect labels -> merge into labeled_ds -> next round
+```
+
+This makes the synthetic pre-training -> real-data fine-tuning transition explicit and operational.
