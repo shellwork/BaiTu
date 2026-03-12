@@ -63,6 +63,78 @@ def evaluate(model, dataloader, device):
     
     return metrics
 
+
+
+
+def train_deep_ensemble(
+        train_dataset,
+        val_dataset,
+        n_members: int = 5,
+        batch_size: int = Config.BATCH_SIZE,
+        lr: float = Config.LEARNING_RATE,
+        num_epochs: int = Config.NUM_EPOCHS,
+        device: str = Config.DEVICE,
+):
+    """Train a deep ensemble of KineticsPredictor models for uncertainty estimation."""
+    ensemble = []
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    criterion = nn.MSELoss()
+
+    for m in range(n_members):
+        print(f"\n[Ensemble] Training member {m+1}/{n_members}")
+        model = KineticsPredictor(
+            enzyme_dim=Config.ENZYME_DIM,
+            substrate_dim=Config.SUBSTRATE_DIM,
+            hidden_dim=Config.HIDDEN_DIM,
+            dropout=Config.DROPOUT,
+        ).to(device)
+        optimizer = optim.Adam(model.parameters(), lr=lr)
+
+        for epoch in range(num_epochs):
+            model.train()
+            running_loss = 0.0
+            for batch in train_loader:
+                enzyme_embed = batch['enzyme_embed'].to(device)
+                substrate_fp = batch['substrate_fp'].to(device)
+                substrate_conc = batch['substrate_conc'].to(device)
+                enzyme_conc = batch['enzyme_conc'].to(device)
+                has_param_label = batch['has_param_label'].to(device).squeeze(-1) > 0
+                has_rate_label = batch['has_rate_label'].to(device).squeeze(-1) > 0
+
+                if not (has_param_label.any() or has_rate_label.any()):
+                    continue
+
+                optimizer.zero_grad()
+                outputs = model(
+                    enzyme_embed,
+                    substrate_fp,
+                    substrate_conc=substrate_conc,
+                    enzyme_conc=enzyme_conc,
+                )
+
+                loss = torch.tensor(0.0, device=device)
+                if has_param_label.any():
+                    target_log_kcat = batch['log_kcat'].to(device)[has_param_label]
+                    target_log_km = batch['log_km'].to(device)[has_param_label]
+                    loss = loss + Config.PARAM_LOSS_WEIGHT * (
+                        criterion(outputs['log_kcat'][has_param_label], target_log_kcat)
+                        + criterion(outputs['log_km'][has_param_label], target_log_km)
+                    )
+                if has_rate_label.any():
+                    target_v0 = batch['v0'].to(device)[has_rate_label]
+                    loss = loss + Config.RATE_LOSS_WEIGHT * criterion(outputs['v0_pred'][has_rate_label], target_v0)
+
+                loss.backward()
+                optimizer.step()
+                running_loss += loss.item()
+
+            if (epoch + 1) % 10 == 0:
+                metrics = evaluate(model, val_loader, device)
+                print(f"  member={m+1} epoch={epoch+1} loss={running_loss/max(1,len(train_loader)):.4f} v0_r2={metrics.get('v0_r2', float('nan')):.4f}")
+
+        ensemble.append(model)
+    return ensemble
 def train():
     pt_path = Config.PREPROCESSED_DATA_PATH
 
@@ -245,3 +317,42 @@ if __name__ == '__main__':
     # Default entrypoint runs direct Km prediction training (PREDICT_KM_DIRECT=True)
     # Trypsin active learning: from train import train_trypsin_ensemble; train_trypsin_ensemble()
     train()
+
+
+
+def run_active_learning_round(
+        labeled_dataset,
+        pool_dataset,
+        query_size: int = 32,
+        n_members: int = 5,
+        device: str = Config.DEVICE,
+):
+    """Single active-learning round: train ensemble, score pool, return selected indices."""
+    from active_learning import score_pool_contribution, select_top_k
+
+    labeled_loader = torch.utils.data.DataLoader(labeled_dataset, batch_size=Config.BATCH_SIZE, shuffle=False)
+    pool_loader = torch.utils.data.DataLoader(pool_dataset, batch_size=Config.BATCH_SIZE, shuffle=False)
+
+    train_size = int(0.8 * len(labeled_dataset))
+    val_size = len(labeled_dataset) - train_size
+    train_subset, val_subset = random_split(labeled_dataset, [train_size, val_size])
+
+    ensemble = train_deep_ensemble(
+        train_dataset=train_subset,
+        val_dataset=val_subset,
+        n_members=n_members,
+        batch_size=Config.BATCH_SIZE,
+        lr=Config.LEARNING_RATE,
+        num_epochs=max(1, Config.NUM_EPOCHS // 2),
+        device=device,
+    )
+
+    scorer_model = ensemble[0]
+    result = score_pool_contribution(
+        model=scorer_model,
+        ensemble=ensemble,
+        pool_loader=pool_loader,
+        labeled_loader=labeled_loader,
+        device=device,
+    )
+    return select_top_k(result, k=query_size), result

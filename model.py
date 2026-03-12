@@ -60,11 +60,20 @@ class KineticsPredictor(nn.Module):
         self.km_head = nn.Linear(256, 1)
         self.physics_layer = MichaelisMentenLayer()
 
-    def forward(self, enzyme_embed, substrate_fp, substrate_conc=None, enzyme_conc=None):
+    def encode(self, enzyme_embed, substrate_fp):
+        """
+        Encode enzyme/substrate inputs into a fused latent representation.
+
+        This representation is used by both prediction heads and active-learning
+        scoring (novelty / representativeness analysis).
+        """
         e_feat = self.enzyme_projector(enzyme_embed)
         s_feat = self.substrate_projector(substrate_fp)
         x_fused = torch.cat([e_feat, s_feat], dim=1)
-        hidden = self.trunk(x_fused)
+        return self.trunk(x_fused)
+
+    def forward(self, enzyme_embed, substrate_fp, substrate_conc=None, enzyme_conc=None, return_hidden=False):
+        hidden = self.encode(enzyme_embed, substrate_fp)
 
         log_kcat = self.kcat_head(hidden)
         log_km = self.km_head(hidden)
@@ -80,6 +89,9 @@ class KineticsPredictor(nn.Module):
 
         if substrate_conc is not None and enzyme_conc is not None:
             outputs["v0_pred"] = self.physics_layer(kcat, km, enzyme_conc, substrate_conc)
+
+        if return_hidden:
+            outputs["hidden"] = hidden
 
         return outputs
 
