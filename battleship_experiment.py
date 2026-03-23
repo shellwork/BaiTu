@@ -17,6 +17,7 @@ from typing import Dict, List, Optional
 
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import numpy as np
 
 from battleship_env import BattleshipBoard
@@ -47,14 +48,14 @@ COLORS: Dict[str, str] = {
 # Single episode
 # ------------------------------------------------------------------
 
-def run_episode(strategy: str, seed: int, board_size: int = 10) -> Dict:
+def run_episode(strategy: str, seed: int, board_rows: int = 8, board_cols: int = 10) -> Dict:
     """
     Play one complete game with the given acquisition strategy.
 
     Returns a dict with per-step history and summary statistics.
     """
-    board = BattleshipBoard(size=board_size, seed=seed)
-    model = BeliefModel(board_size=board_size)
+    board = BattleshipBoard(rows=board_rows, cols=board_cols, seed=seed)
+    model = BeliefModel(board_rows=board_rows, board_cols=board_cols)
 
     history: List[Dict] = []
 
@@ -99,7 +100,8 @@ def run_episode(strategy: str, seed: int, board_size: int = 10) -> Dict:
 def run_experiment(
     n_episodes: int = 200,
     strategies: Optional[List[str]] = None,
-    board_size: int = 10,
+    board_rows: int = 8,
+    board_cols: int = 10,
     verbose: bool = True,
 ) -> Dict[str, List[Dict]]:
     """
@@ -113,7 +115,7 @@ def run_experiment(
 
     for seed in range(n_episodes):
         for strategy in strategies:
-            ep = run_episode(strategy, seed=seed, board_size=board_size)
+            ep = run_episode(strategy, seed=seed, board_rows=board_rows, board_cols=board_cols)
             results[strategy].append(ep)
 
         if verbose and (seed + 1) % 50 == 0:
@@ -251,14 +253,14 @@ def plot_episode_detail(episode: Dict, save_dir: str = "."):
     Shows board observation + probability map at 6 key steps.
     """
     board = episode["board"]
-    n = board.size
+    rows, cols = board.rows, board.cols
     history = episode["history"]
     strategy = episode["strategy"]
     total_steps = len(history)
 
     # Re-run episode to capture intermediate states
-    replay_board = BattleshipBoard(size=n, seed=episode["seed"])
-    replay_model = BeliefModel(board_size=n)
+    replay_board = BattleshipBoard(rows=board.size[0], cols=board.size[1], seed=episode["seed"])
+    replay_model = BeliefModel(board_rows=board.size[0], board_cols=board.size[1])
 
     # Choose snapshot steps
     snap_steps = sorted(set([
@@ -291,7 +293,7 @@ def plot_episode_detail(episode: Dict, save_dir: str = "."):
             ))
 
     n_snaps = len(snapshots)
-    fig, axes = plt.subplots(2, n_snaps, figsize=(3.5 * n_snaps, 7))
+    fig, axes = plt.subplots(2, n_snaps, figsize=(3.5 * n_snaps, 7), squeeze=False)
     fig.suptitle(
         f"Episode Detail – strategy='{LABELS[strategy]}', seed={episode['seed']}, "
         f"total queries={total_steps}",
@@ -307,10 +309,10 @@ def plot_episode_detail(episode: Dict, save_dir: str = "."):
         disp[obs == -1] = 0.5  # unknown → grey
         im = ax_top.imshow(disp, vmin=0, vmax=1, cmap="RdYlGn", interpolation="nearest")
         # Mark true ship positions (faint outline)
-        for r in range(n):
-            for c in range(n):
+        for r in range(rows):
+            for c in range(cols):
                 if grid[r, c] == 1 and obs[r, c] == -1:
-                    ax_top.add_patch(plt.Rectangle(
+                    ax_top.add_patch(Rectangle(
                         (c - 0.5, r - 0.5), 1, 1,
                         linewidth=0.5, edgecolor="navy", facecolor="none", alpha=0.4
                     ))
@@ -346,6 +348,7 @@ def print_summary(results: Dict[str, List[Dict]]):
         print(f"{LABELS[s]:<35} {q.mean():>6.1f} {q.std():>6.1f} {q.min():>5} {q.max():>5}")
     print("=" * 60)
     ship_cells = results[list(results.keys())[0]][0]["total_ship_cells"]
-    board_cells = results[list(results.keys())[0]][0]["board"].size ** 2
-    print(f"\nBoard: {board_cells} cells | Ship cells: {ship_cells} "
+    board = results[list(results.keys())[0]][0]["board"]
+    board_cells = board.rows * board.cols
+    print(f"\nBoard: {board_cells} cells ({board.rows}x{board.cols}) | Ship cells: {ship_cells} "
           f"({100*ship_cells/board_cells:.0f}%)\n")

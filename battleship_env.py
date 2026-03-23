@@ -41,18 +41,21 @@ class BattleshipBoard:
 
     def __init__(
         self,
-        size: int = 10,
+        rows: int = 8,
+        cols: int = 10,
         ship_sizes: Optional[List[int]] = None,
         seed: Optional[int] = None,
     ):
-        self.size = size
+        self.rows = rows
+        self.cols = cols
+        self.size = (rows, cols)  # For backwards compatibility
         self.ship_sizes = ship_sizes or self.DEFAULT_SHIPS
         self._rng = random.Random(seed)
 
         # Ground-truth grid (hidden from learner)
-        self.grid = np.zeros((size, size), dtype=int)
+        self.grid = np.zeros((rows, cols), dtype=int)
         # Observation grid visible to learner: -1=unknown, 0=miss, 1=hit
-        self.observed = np.full((size, size), -1, dtype=int)
+        self.observed = np.full((rows, cols), -1, dtype=int)
 
         self.ships: List[Ship] = []
         self.n_queries: int = 0
@@ -71,12 +74,12 @@ class BattleshipBoard:
             for _ in range(100_000):
                 horizontal = self._rng.choice([True, False])
                 if horizontal:
-                    r = self._rng.randint(0, self.size - 1)
-                    c = self._rng.randint(0, self.size - size)
+                    r = self._rng.randint(0, self.rows - 1)
+                    c = self._rng.randint(0, self.cols - size)
                     positions = [(r, c + i) for i in range(size)]
                 else:
-                    r = self._rng.randint(0, self.size - size)
-                    c = self._rng.randint(0, self.size - 1)
+                    r = self._rng.randint(0, self.rows - size)
+                    c = self._rng.randint(0, self.cols - 1)
                     positions = [(r + i, c) for i in range(size)]
 
                 if all(self.grid[p[0], p[1]] == 0 for p in positions):
@@ -102,7 +105,7 @@ class BattleshipBoard:
         is_hit   : bool
         sunk_ship: Ship | None  – the ship object if this query sank it
         """
-        assert 0 <= row < self.size and 0 <= col < self.size
+        assert 0 <= row < self.rows and 0 <= col < self.cols
         assert self.observed[row, col] == -1, f"Cell ({row},{col}) already queried"
 
         self.n_queries += 1
@@ -137,8 +140,8 @@ class BattleshipBoard:
     def get_available_cells(self) -> List[Tuple[int, int]]:
         return [
             (r, c)
-            for r in range(self.size)
-            for c in range(self.size)
+            for r in range(self.rows)
+            for c in range(self.cols)
             if self.observed[r, c] == -1
         ]
 
@@ -148,9 +151,9 @@ class BattleshipBoard:
 
     def __repr__(self) -> str:
         sym = {-1: "·", 0: "O", 1: "X"}
-        header = "   " + " ".join(str(c) for c in range(self.size))
+        header = "   " + " ".join(str(c) for c in range(self.cols))
         rows = [header]
-        for r in range(self.size):
-            row_str = f"{r:2d} " + " ".join(sym[self.observed[r, c]] for c in range(self.size))
+        for r in range(self.rows):
+            row_str = f"{r:2d} " + " ".join(sym[self.observed[r, c]] for c in range(self.cols))
             rows.append(row_str)
         return "\n".join(rows)
