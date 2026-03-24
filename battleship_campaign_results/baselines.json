@@ -1,0 +1,141 @@
+{
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51
+  ],
+  "baselines": {
+    "random": {
+      "label": "Random (baseline)",
+      "color": "#e74c3c",
+      "policy": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mean_queries": 76.6,
+      "std_queries": 4.498888751680797,
+      "queries": [
+        65.0,
+        77.0,
+        80.0,
+        77.0,
+        80.0,
+        75.0,
+        80.0,
+        79.0,
+        80.0,
+        73.0
+      ],
+      "improvement_vs_random_pct": 0.0
+    },
+    "prob": {
+      "label": "Max Probability (exploit)",
+      "color": "#2ecc71",
+      "policy": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mean_queries": 44.8,
+      "std_queries": 5.878775382679627,
+      "queries": [
+        41.0,
+        58.0,
+        40.0,
+        45.0,
+        43.0,
+        40.0,
+        54.0,
+        41.0,
+        44.0,
+        42.0
+      ],
+      "improvement_vs_random_pct": 41.51
+    },
+    "entropy": {
+      "label": "Max Entropy (explore)",
+      "color": "#3498db",
+      "policy": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "mean_queries": 47.0,
+      "std_queries": 11.670475568716126,
+      "queries": [
+        41.0,
+        80.0,
+        40.0,
+        45.0,
+        43.0,
+        40.0,
+        54.0,
+        41.0,
+        44.0,
+        42.0
+      ],
+      "improvement_vs_random_pct": 38.64
+    },
+    "target": {
+      "label": "Hunt-Target heuristic",
+      "color": "#f39c12",
+      "policy": [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "mean_queries": 67.2,
+      "std_queries": 8.885943956609225,
+      "queries": [
+        76.0,
+        80.0,
+        64.0,
+        65.0,
+        69.0,
+        69.0,
+        57.0,
+        58.0,
+        80.0,
+        54.0
+      ],
+      "improvement_vs_random_pct": 12.27
+    }
+  },
+  "campaign_optimum": {
+    "label": "Campaign optimum prob=0.65  entropy=0.02  target=0.30  checker=0.03",
+    "color": "#9b59b6",
+    "policy": {
+      "prob": 0.6489494515746361,
+      "entropy": 0.022151008219760477,
+      "target": 0.30044324851896076,
+      "checker": 0.028456291686642432
+    },
+    "mean_queries": 42.0,
+    "std_queries": 4.449719092257398,
+    "queries": [
+      42.0,
+      54.0,
+      35.0,
+      41.0,
+      41.0,
+      42.0,
+      42.0,
+      41.0,
+      41.0,
+      41.0
+    ],
+    "improvement_vs_random_pct": 45.17
+  }
+}

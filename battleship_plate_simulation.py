@@ -12,8 +12,8 @@ Typical pipeline
 1. ``BattleshipBoard(rows=8, cols=10, seed=...)``  →  active experiment grid
 2. ``generate_battleship_plate_image(board.grid, seed=...)``  →  full 8×12 BGR image
 3. ``get_fixed_well_geometry()`` matches simulator centres / radius for ROI sampling
-4. ``sample_well_mean_bgr(image, row, col, geometry)``  →  mean BGR in inner well disk
-5. ``classify_ship_water_from_mean_bgr(mean_bgr)``  →  ``"ship"`` / ``"water"`` (tunable)
+4. ``sample_well_mean_bgr(image, row, col, geometry)``  →  mean BGR in inner well disk (fixed ROI)
+5. ``query_well_fixed_geometry_rgb(...)``  →  ``"ship"`` / ``"water"`` / ``"unknown"`` via RGB distance to prototypes
 """
 
 from __future__ import annotations
@@ -31,6 +31,13 @@ from plate_simulator import PlateSimulator
 # Water RGB(104, 91, 134) → BGR (134, 91, 104)
 SHIP_LIQUID_BGR: np.ndarray = np.array([135, 92, 166], dtype=np.float32)
 WATER_LIQUID_BGR: np.ndarray = np.array([134, 91, 104], dtype=np.float32)
+# Same prototypes in RGB space (for fixed-ROI RGB distance readout)
+SHIP_LIQUID_RGB: np.ndarray = np.array([166.0, 92.0, 135.0], dtype=np.float32)
+WATER_LIQUID_RGB: np.ndarray = np.array([104.0, 91.0, 134.0], dtype=np.float32)
+# Default tolerances: geometry is fixed; liquid colour varies with simulator noise.
+# Tune with calibration on your rig; L2 ball ~95% of synthetic wells at default render settings.
+DEFAULT_RGB_L2_TOLERANCE: float = 48.0
+DEFAULT_RGB_PER_CHANNEL_DELTA: float = 22.0
 UNUSED_WELL_VALUE = -1
 ACTIVE_COLS = 10
 RESERVED_CONTROL_COLS = 2
@@ -122,6 +129,79 @@ def simulate_photo_from_board(
     return generate_battleship_plate_image(board_grid_to_plate_labels(board), seed=seed, **sim_kwargs)
 
 
+def mean_bgr_to_mean_rgb(mean_bgr: np.ndarray) -> np.ndarray:
+    """OpenCV BGR mean → RGB vector (float)."""
+    b, g, r = mean_bgr.astype(np.float32).reshape(3)
+    return np.array([r, g, b], dtype=np.float32)
+
+
+def classify_ship_water_fixed_rgb_tolerance(
+    mean_bgr: np.ndarray,
+    ship_rgb: np.ndarray = SHIP_LIQUID_RGB,
+    water_rgb: np.ndarray = WATER_LIQUID_RGB,
+    *,
+    l2_max: float = DEFAULT_RGB_L2_TOLERANCE,
+    per_channel_delta: Optional[float] = None,
+) -> Tuple[str, float]:
+    """
+    Fixed-geometry readout: compare mean ROI colour to predefined ship/water RGB.
+
+    - If ``per_channel_delta`` is None: accept class if Euclidean distance in RGB
+      is <= ``l2_max`` (ball tolerance, "CI" as radius in colour space).
+    - If ``per_channel_delta`` is set: additionally require each channel within
+      ±delta of the prototype (box ∩ ball, stricter).
+
+    Returns (label, confidence) with label ``ship`` | ``water`` | ``unknown``.
+    """
+    m = mean_bgr_to_mean_rgb(mean_bgr)
+    ds = float(np.linalg.norm(m - ship_rgb))
+    dw = float(np.linalg.norm(m - water_rgb))
+
+    def in_ball_ship() -> bool:
+        return ds <= l2_max
+
+    def in_ball_water() -> bool:
+        return dw <= l2_max
+
+    def in_box(vec: np.ndarray, proto: np.ndarray) -> bool:
+        if per_channel_delta is None:
+            return True
+        return bool(np.all(np.abs(vec - proto) <= per_channel_delta))
+
+    in_s = in_ball_ship() and in_box(m, ship_rgb)
+    in_w = in_ball_water() and in_box(m, water_rgb)
+
+    if in_s and in_w:
+        if ds <= dw:
+            conf = max(0.0, min(1.0, 1.0 - ds / max(l2_max, 1e-6)))
+            return "ship", conf
+        conf = max(0.0, min(1.0, 1.0 - dw / max(l2_max, 1e-6)))
+        return "water", conf
+    if in_s:
+        return "ship", max(0.0, min(1.0, 1.0 - ds / max(l2_max, 1e-6)))
+    if in_w:
+        return "water", max(0.0, min(1.0, 1.0 - dw / max(l2_max, 1e-6)))
+    return "unknown", 0.0
+
+
+def query_well_fixed_geometry_rgb(
+    image_bgr: np.ndarray,
+    row: int,
+    col: int,
+    geometry: Dict,
+    inner_fraction: float = 0.60,
+    **classify_kw,
+) -> Tuple[str, np.ndarray, float]:
+    """
+    Sample the same inner-disk ROI as rendering geometry, classify by RGB tolerance.
+
+    Returns (label, mean_bgr_uint8, confidence) with label ``ship`` | ``water`` | ``unknown``.
+    """
+    mean_b = sample_well_mean_bgr(image_bgr, row, col, geometry, inner_fraction=inner_fraction)
+    label, conf = classify_ship_water_fixed_rgb_tolerance(mean_b, **classify_kw)
+    return label, mean_b, conf
+
+
 def sample_well_mean_bgr(
     image_bgr: np.ndarray,
     row: int,
@@ -190,23 +270,33 @@ def decode_plate_from_image_bgr(
     geometry: Dict,
     inner_fraction: float = 0.60,
     active_cols: int = ACTIVE_COLS,
+    **rgb_classify_kw,
 ) -> np.ndarray:
     """
     Build an 8×12 matrix: active area is 1 = ship (red), 0 = water (blue),
     reserved control columns are fixed to ``-1``.
 
-    Uses prototype distance only; for real photos prefer HSV logic in
-    ``PlateDetector`` with ``color_mode='red_blue'``.
+    Uses fixed geometry ROI + RGB tolerance (same as ``query_well_fixed_geometry_rgb``).
+    Optional kwargs: ``l2_max``, ``per_channel_delta``, ``ship_rgb``, ``water_rgb``.
     """
     rows, cols = geometry["rows"], geometry["cols"]
     out = np.full((rows, cols), UNUSED_WELL_VALUE, dtype=int)
     for ri in range(rows):
         for ci in range(min(active_cols, cols)):
-            mean_b = sample_well_mean_bgr(
-                image_bgr, ri, ci, geometry, inner_fraction=inner_fraction
+            label, _, _ = query_well_fixed_geometry_rgb(
+                image_bgr, ri, ci, geometry,
+                inner_fraction=inner_fraction,
+                **rgb_classify_kw,
             )
-            label, _ = classify_ship_water_from_mean_bgr(mean_b)
-            out[ri, ci] = 1 if label == "ship" else 0
+            if label == "ship":
+                out[ri, ci] = 1
+            elif label == "water":
+                out[ri, ci] = 0
+            else:
+                m = mean_bgr_to_mean_rgb(mean_b)
+                ds = float(np.linalg.norm(m - SHIP_LIQUID_RGB))
+                dw = float(np.linalg.norm(m - WATER_LIQUID_RGB))
+                out[ri, ci] = 1 if ds < dw else 0
     return out
 
 

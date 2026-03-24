@@ -1,0 +1,31 @@
+{
+  "max_cycles": 20,
+  "query_size": 8,
+  "replicates": 3,
+  "validation_policy_count": 16,
+  "validation_replicates": 4,
+  "ensemble_members": 10,
+  "hardware_error_rate": 0.0,
+  "seed": 42,
+  "rgb_l2_max": null,
+  "rgb_per_channel_delta": null,
+  "default_rgb_l2_if_unset": 48.0,
+  "thresholds": {
+    "replicate_cv_pct": 30.0,
+    "min_query_size": 8,
+    "max_query_size": 96,
+    "ensemble_var_lower": 1e-08,
+    "ensemble_var_upper": 400.0,
+    "heldout_mae_queries": 4.0,
+    "info_gain_pct": 2.0,
+    "prediction_stability_pct": 90.0,
+    "no_improvement_streak": 5,
+    "max_cycles": 20
+  },
+  "policy_components": [
+    "prob",
+    "entropy",
+    "target",
+    "checker"
+  ]
+}

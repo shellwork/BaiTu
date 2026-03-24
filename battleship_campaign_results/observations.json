@@ -1,0 +1,1218 @@
+[
+  {
+    "cycle": 1,
+    "batch_index": 1,
+    "policy": {
+      "prob": 1.0,
+      "entropy": 0.0,
+      "target": 0.0,
+      "checker": 0.0
+    },
+    "mean_queries": 48.666666666666664,
+    "replicate_cv_pct": 9.830616503018714,
+    "replicate_queries": [
+      53.0,
+      51.0,
+      42.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 1,
+    "batch_index": 2,
+    "policy": {
+      "prob": 0.0,
+      "entropy": 1.0,
+      "target": 0.0,
+      "checker": 0.0
+    },
+    "mean_queries": 57.666666666666664,
+    "replicate_cv_pct": 28.11650059425505,
+    "replicate_queries": [
+      80.0,
+      51.0,
+      42.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 1,
+    "batch_index": 3,
+    "policy": {
+      "prob": 0.0,
+      "entropy": 0.0,
+      "target": 1.0,
+      "checker": 0.0
+    },
+    "mean_queries": 68.33333333333333,
+    "replicate_cv_pct": 1.825198725255581,
+    "replicate_queries": [
+      67.0,
+      70.0,
+      68.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 1,
+    "batch_index": 4,
+    "policy": {
+      "prob": 0.0,
+      "entropy": 0.0,
+      "target": 0.0,
+      "checker": 1.0
+    },
+    "mean_queries": 74.66666666666667,
+    "replicate_cv_pct": 1.6703827619526521,
+    "replicate_queries": [
+      76.0,
+      75.0,
+      73.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 1,
+    "batch_index": 5,
+    "policy": {
+      "prob": 0.35,
+      "entropy": 0.35,
+      "target": 0.2,
+      "checker": 0.1
+    },
+    "mean_queries": 45.666666666666664,
+    "replicate_cv_pct": 9.847253695789812,
+    "replicate_queries": [
+      51.0,
+      40.0,
+      46.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 1,
+    "batch_index": 6,
+    "policy": {
+      "prob": 0.2,
+      "entropy": 0.2,
+      "target": 0.5,
+      "checker": 0.1
+    },
+    "mean_queries": 41.0,
+    "replicate_cv_pct": 5.268894876754358,
+    "replicate_queries": [
+      43.0,
+      38.0,
+      42.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 1,
+    "batch_index": 7,
+    "policy": {
+      "prob": 0.25,
+      "entropy": 0.25,
+      "target": 0.25,
+      "checker": 0.25
+    },
+    "mean_queries": 47.666666666666664,
+    "replicate_cv_pct": 7.131495823206692,
+    "replicate_queries": [
+      51.0,
+      43.0,
+      49.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 1,
+    "batch_index": 8,
+    "policy": {
+      "prob": 0.08219682916029292,
+      "entropy": 0.5272517827092505,
+      "target": 0.2306407001278181,
+      "checker": 0.1599106880026384
+    },
+    "mean_queries": 45.666666666666664,
+    "replicate_cv_pct": 9.847253695789812,
+    "replicate_queries": [
+      51.0,
+      40.0,
+      46.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 2,
+    "batch_index": 1,
+    "policy": {
+      "prob": 0.2077915369360073,
+      "entropy": 0.015520168945666105,
+      "target": 0.6537868146926374,
+      "checker": 0.12290147942568908
+    },
+    "mean_queries": 35.0,
+    "replicate_cv_pct": 16.329931618554518,
+    "replicate_queries": [
+      30.0,
+      32.0,
+      43.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 2,
+    "batch_index": 2,
+    "policy": {
+      "prob": 0.0567983066899313,
+      "entropy": 0.21086590126183216,
+      "target": 0.6646916533941978,
+      "checker": 0.06764413865403868
+    },
+    "mean_queries": 35.0,
+    "replicate_cv_pct": 16.329931618554518,
+    "replicate_queries": [
+      30.0,
+      32.0,
+      43.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 2,
+    "batch_index": 3,
+    "policy": {
+      "prob": 0.08899993649547572,
+      "entropy": 0.017845402435848718,
+      "target": 0.6220527670726909,
+      "checker": 0.27110189399598467
+    },
+    "mean_queries": 36.0,
+    "replicate_cv_pct": 17.71400599047129,
+    "replicate_queries": [
+      31.0,
+      32.0,
+      45.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 2,
+    "batch_index": 4,
+    "policy": {
+      "prob": 0.0655721658777654,
+      "entropy": 0.059516288131452016,
+      "target": 0.7686488769833952,
+      "checker": 0.10626266900738733
+    },
+    "mean_queries": 36.0,
+    "replicate_cv_pct": 17.71400599047129,
+    "replicate_queries": [
+      31.0,
+      32.0,
+      45.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 2,
+    "batch_index": 5,
+    "policy": {
+      "prob": 0.14180038269935583,
+      "entropy": 0.1829670961413032,
+      "target": 0.5284705732670528,
+      "checker": 0.1467619478922884
+    },
+    "mean_queries": 35.0,
+    "replicate_cv_pct": 16.329931618554518,
+    "replicate_queries": [
+      30.0,
+      32.0,
+      43.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 2,
+    "batch_index": 6,
+    "policy": {
+      "prob": 0.400053131820867,
+      "entropy": 0.023612950026475957,
+      "target": 0.481548424650059,
+      "checker": 0.09478549350259806
+    },
+    "mean_queries": 34.333333333333336,
+    "replicate_cv_pct": 17.849297389174986,
+    "replicate_queries": [
+      30.0,
+      30.0,
+      43.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 2,
+    "batch_index": 7,
+    "policy": {
+      "prob": 0.16663785401592193,
+      "entropy": 0.018681589156961914,
+      "target": 0.46747720122892056,
+      "checker": 0.3472033555981955
+    },
+    "mean_queries": 36.0,
+    "replicate_cv_pct": 17.71400599047129,
+    "replicate_queries": [
+      31.0,
+      32.0,
+      45.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 2,
+    "batch_index": 8,
+    "policy": {
+      "prob": 0.019976018500289225,
+      "entropy": 0.42887910075728114,
+      "target": 0.5431184636904927,
+      "checker": 0.008026417051937075
+    },
+    "mean_queries": 34.666666666666664,
+    "replicate_cv_pct": 17.038504948720533,
+    "replicate_queries": [
+      31.0,
+      30.0,
+      43.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 3,
+    "batch_index": 1,
+    "policy": {
+      "prob": 0.008567989801800069,
+      "entropy": 0.003593294925942898,
+      "target": 0.8766226831407847,
+      "checker": 0.11121603213147226
+    },
+    "mean_queries": 37.666666666666664,
+    "replicate_cv_pct": 11.93870580816995,
+    "replicate_queries": [
+      35.0,
+      44.0,
+      34.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 3,
+    "batch_index": 2,
+    "policy": {
+      "prob": 0.011506174170512628,
+      "entropy": 0.03733315461935143,
+      "target": 0.17252582084156212,
+      "checker": 0.7786348503685738
+    },
+    "mean_queries": 51.0,
+    "replicate_cv_pct": 0.0,
+    "replicate_queries": [
+      51.0,
+      51.0,
+      51.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 3,
+    "batch_index": 3,
+    "policy": {
+      "prob": 0.07993425783103442,
+      "entropy": 0.00549444114364642,
+      "target": 0.022256863701468368,
+      "checker": 0.8923144373238509
+    },
+    "mean_queries": 51.666666666666664,
+    "replicate_cv_pct": 1.8247916933846389,
+    "replicate_queries": [
+      51.0,
+      53.0,
+      51.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 3,
+    "batch_index": 4,
+    "policy": {
+      "prob": 0.05410731314714012,
+      "entropy": 0.15920935266777853,
+      "target": 0.7359911078979006,
+      "checker": 0.05069222628718076
+    },
+    "mean_queries": 36.0,
+    "replicate_cv_pct": 15.876322406928006,
+    "replicate_queries": [
+      33.0,
+      44.0,
+      31.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 3,
+    "batch_index": 5,
+    "policy": {
+      "prob": 0.6310071685594727,
+      "entropy": 0.004189884103540687,
+      "target": 0.32050652102216304,
+      "checker": 0.04429642631482341
+    },
+    "mean_queries": 41.0,
+    "replicate_cv_pct": 15.806684630263074,
+    "replicate_queries": [
+      35.0,
+      38.0,
+      50.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 3,
+    "batch_index": 6,
+    "policy": {
+      "prob": 0.35430085083738483,
+      "entropy": 0.002299314775006217,
+      "target": 0.6276350452008755,
+      "checker": 0.015764789186733477
+    },
+    "mean_queries": 32.666666666666664,
+    "replicate_cv_pct": 1.4430750636460155,
+    "replicate_queries": [
+      33.0,
+      33.0,
+      32.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 3,
+    "batch_index": 7,
+    "policy": {
+      "prob": 0.07241300307251755,
+      "entropy": 0.04363273876905529,
+      "target": 0.39970470533531477,
+      "checker": 0.48424955282311244
+    },
+    "mean_queries": 38.666666666666664,
+    "replicate_cv_pct": 7.994498703013539,
+    "replicate_queries": [
+      37.0,
+      43.0,
+      36.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 3,
+    "batch_index": 8,
+    "policy": {
+      "prob": 0.002166112944036572,
+      "entropy": 0.04902800890757794,
+      "target": 0.6615582234874071,
+      "checker": 0.28724765466097835
+    },
+    "mean_queries": 37.666666666666664,
+    "replicate_cv_pct": 11.93870580816995,
+    "replicate_queries": [
+      35.0,
+      44.0,
+      34.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 4,
+    "batch_index": 1,
+    "policy": {
+      "prob": 0.39286036126889484,
+      "entropy": 0.020720200120836314,
+      "target": 0.5851945369267458,
+      "checker": 0.0012249016835230648
+    },
+    "mean_queries": 32.333333333333336,
+    "replicate_cv_pct": 22.91351625865244,
+    "replicate_queries": [
+      22.0,
+      39.0,
+      36.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 4,
+    "batch_index": 2,
+    "policy": {
+      "prob": 0.5033235523143845,
+      "entropy": 0.04140588535391114,
+      "target": 0.3952211697750561,
+      "checker": 0.06004939255664835
+    },
+    "mean_queries": 33.333333333333336,
+    "replicate_cv_pct": 26.981475126464076,
+    "replicate_queries": [
+      22.0,
+      34.0,
+      44.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 4,
+    "batch_index": 3,
+    "policy": {
+      "prob": 0.3238581527416313,
+      "entropy": 0.05333462554145091,
+      "target": 0.4828046660878928,
+      "checker": 0.140002555629025
+    },
+    "mean_queries": 34.0,
+    "replicate_cv_pct": 25.975767253905435,
+    "replicate_queries": [
+      22.0,
+      43.0,
+      37.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 4,
+    "batch_index": 4,
+    "policy": {
+      "prob": 0.1665370428576133,
+      "entropy": 0.16834183682280088,
+      "target": 0.6418261638682546,
+      "checker": 0.023294956451331075
+    },
+    "mean_queries": 30.666666666666668,
+    "replicate_cv_pct": 20.160040207599355,
+    "replicate_queries": [
+      22.0,
+      34.0,
+      36.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 4,
+    "batch_index": 5,
+    "policy": {
+      "prob": 0.1584063242557699,
+      "entropy": 0.0120396142987083,
+      "target": 0.7746216474033103,
+      "checker": 0.054932414042211636
+    },
+    "mean_queries": 34.0,
+    "replicate_cv_pct": 25.975767253905435,
+    "replicate_queries": [
+      22.0,
+      43.0,
+      37.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 4,
+    "batch_index": 6,
+    "policy": {
+      "prob": 0.360825038638883,
+      "entropy": 0.188687598964933,
+      "target": 0.3841908817006494,
+      "checker": 0.06629648069553438
+    },
+    "mean_queries": 33.333333333333336,
+    "replicate_cv_pct": 26.981475126464076,
+    "replicate_queries": [
+      22.0,
+      34.0,
+      44.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 4,
+    "batch_index": 7,
+    "policy": {
+      "prob": 0.18371176034368272,
+      "entropy": 0.021395551822159138,
+      "target": 0.580553219745631,
+      "checker": 0.21433946808852725
+    },
+    "mean_queries": 35.333333333333336,
+    "replicate_cv_pct": 23.716613377314214,
+    "replicate_queries": [
+      24.0,
+      44.0,
+      38.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 4,
+    "batch_index": 8,
+    "policy": {
+      "prob": 0.05905739107211793,
+      "entropy": 0.38371357111308957,
+      "target": 0.5277402500803964,
+      "checker": 0.029488787734395998
+    },
+    "mean_queries": 30.666666666666668,
+    "replicate_cv_pct": 20.160040207599355,
+    "replicate_queries": [
+      22.0,
+      34.0,
+      36.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 5,
+    "batch_index": 1,
+    "policy": {
+      "prob": 0.0008293622748179933,
+      "entropy": 0.4967471232582316,
+      "target": 0.4372635428236696,
+      "checker": 0.06515997164328091
+    },
+    "mean_queries": 44.333333333333336,
+    "replicate_cv_pct": 8.304782719689669,
+    "replicate_queries": [
+      44.0,
+      49.0,
+      40.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 5,
+    "batch_index": 2,
+    "policy": {
+      "prob": 0.08142550194401077,
+      "entropy": 0.3482675264620804,
+      "target": 0.5305355256666061,
+      "checker": 0.03977144592730256
+    },
+    "mean_queries": 44.0,
+    "replicate_cv_pct": 10.33195583104989,
+    "replicate_queries": [
+      43.0,
+      50.0,
+      39.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 5,
+    "batch_index": 3,
+    "policy": {
+      "prob": 0.27202821093216334,
+      "entropy": 0.029954653290279624,
+      "target": 0.6513374480870406,
+      "checker": 0.046679687690516496
+    },
+    "mean_queries": 44.333333333333336,
+    "replicate_cv_pct": 9.45098127065905,
+    "replicate_queries": [
+      43.0,
+      50.0,
+      40.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 5,
+    "batch_index": 4,
+    "policy": {
+      "prob": 0.1030619654720714,
+      "entropy": 0.16302941417861108,
+      "target": 0.7195178261609899,
+      "checker": 0.01439079418832753
+    },
+    "mean_queries": 44.0,
+    "replicate_cv_pct": 10.33195583104989,
+    "replicate_queries": [
+      43.0,
+      50.0,
+      39.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 5,
+    "batch_index": 5,
+    "policy": {
+      "prob": 0.3034308434813433,
+      "entropy": 0.12988869990480936,
+      "target": 0.48331087668951,
+      "checker": 0.08336957992433751
+    },
+    "mean_queries": 43.666666666666664,
+    "replicate_cv_pct": 9.411319088502255,
+    "replicate_queries": [
+      43.0,
+      49.0,
+      39.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 5,
+    "batch_index": 6,
+    "policy": {
+      "prob": 0.03771016420331935,
+      "entropy": 0.0612305958217551,
+      "target": 0.8470274289128557,
+      "checker": 0.05403181106206994
+    },
+    "mean_queries": 46.0,
+    "replicate_cv_pct": 6.399826714730324,
+    "replicate_queries": [
+      47.0,
+      49.0,
+      42.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 5,
+    "batch_index": 7,
+    "policy": {
+      "prob": 0.14803478579360482,
+      "entropy": 0.1542882522505523,
+      "target": 0.561387754945713,
+      "checker": 0.1362892070101298
+    },
+    "mean_queries": 46.0,
+    "replicate_cv_pct": 6.399826714730324,
+    "replicate_queries": [
+      47.0,
+      49.0,
+      42.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 5,
+    "batch_index": 8,
+    "policy": {
+      "prob": 0.403137651173179,
+      "entropy": 0.018881784227347816,
+      "target": 0.4058093587110723,
+      "checker": 0.17217120588840093
+    },
+    "mean_queries": 45.666666666666664,
+    "replicate_cv_pct": 7.443824107434723,
+    "replicate_queries": [
+      47.0,
+      49.0,
+      41.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 6,
+    "batch_index": 1,
+    "policy": {
+      "prob": 0.5142663654860964,
+      "entropy": 0.01250485109071674,
+      "target": 0.35982959526099856,
+      "checker": 0.11339918816218832
+    },
+    "mean_queries": 37.333333333333336,
+    "replicate_cv_pct": 16.414978848973423,
+    "replicate_queries": [
+      45.0,
+      37.0,
+      30.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 6,
+    "batch_index": 2,
+    "policy": {
+      "prob": 0.4077324383335853,
+      "entropy": 0.02761106515450818,
+      "target": 0.5285854762004444,
+      "checker": 0.036071020311462046
+    },
+    "mean_queries": 36.666666666666664,
+    "replicate_cv_pct": 15.640591394622957,
+    "replicate_queries": [
+      44.0,
+      30.0,
+      36.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 6,
+    "batch_index": 3,
+    "policy": {
+      "prob": 0.38331111832734466,
+      "entropy": 0.0012160887644039134,
+      "target": 0.346878852218666,
+      "checker": 0.26859394068958553
+    },
+    "mean_queries": 47.0,
+    "replicate_cv_pct": 13.568174801212049,
+    "replicate_queries": [
+      52.0,
+      38.0,
+      51.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 6,
+    "batch_index": 4,
+    "policy": {
+      "prob": 0.5258545494190571,
+      "entropy": 0.15393256178258102,
+      "target": 0.27327064672353696,
+      "checker": 0.04694224207482499
+    },
+    "mean_queries": 36.0,
+    "replicate_cv_pct": 10.393492741038726,
+    "replicate_queries": [
+      40.0,
+      37.0,
+      31.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 6,
+    "batch_index": 5,
+    "policy": {
+      "prob": 0.02232910096610789,
+      "entropy": 0.3498608253133921,
+      "target": 0.5950210936439233,
+      "checker": 0.03278898007657689
+    },
+    "mean_queries": 35.333333333333336,
+    "replicate_cv_pct": 17.49739338772774,
+    "replicate_queries": [
+      44.0,
+      30.0,
+      32.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 6,
+    "batch_index": 6,
+    "policy": {
+      "prob": 0.21528633889267862,
+      "entropy": 0.12401389709876734,
+      "target": 0.5621609413126717,
+      "checker": 0.09853882269588231
+    },
+    "mean_queries": 35.666666666666664,
+    "replicate_cv_pct": 18.644801255383182,
+    "replicate_queries": [
+      45.0,
+      30.0,
+      32.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 6,
+    "batch_index": 7,
+    "policy": {
+      "prob": 0.5052826740781214,
+      "entropy": 0.023958200955301545,
+      "target": 0.18570040326097575,
+      "checker": 0.2850587217056013
+    },
+    "mean_queries": 48.0,
+    "replicate_cv_pct": 3.4020690871988584,
+    "replicate_queries": [
+      50.0,
+      46.0,
+      48.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 6,
+    "batch_index": 8,
+    "policy": {
+      "prob": 0.04927880525784016,
+      "entropy": 0.14456306345740888,
+      "target": 0.5658378557118549,
+      "checker": 0.2403202755728961
+    },
+    "mean_queries": 37.666666666666664,
+    "replicate_cv_pct": 17.521229976303836,
+    "replicate_queries": [
+      47.0,
+      33.0,
+      33.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 7,
+    "batch_index": 1,
+    "policy": {
+      "prob": 0.23944770195872497,
+      "entropy": 0.003955453659824072,
+      "target": 0.7460551227570174,
+      "checker": 0.01054172162443372
+    },
+    "mean_queries": 37.666666666666664,
+    "replicate_cv_pct": 11.93870580816995,
+    "replicate_queries": [
+      35.0,
+      34.0,
+      44.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 7,
+    "batch_index": 2,
+    "policy": {
+      "prob": 0.02367793358175083,
+      "entropy": 0.013024193825397094,
+      "target": 0.8781728993496053,
+      "checker": 0.0851249732432468
+    },
+    "mean_queries": 40.333333333333336,
+    "replicate_cv_pct": 11.861735615212664,
+    "replicate_queries": [
+      38.0,
+      36.0,
+      47.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 7,
+    "batch_index": 3,
+    "policy": {
+      "prob": 0.11131313521955391,
+      "entropy": 0.2309211402403655,
+      "target": 0.6560724857133198,
+      "checker": 0.001693238826760805
+    },
+    "mean_queries": 37.666666666666664,
+    "replicate_cv_pct": 11.93870580816995,
+    "replicate_queries": [
+      35.0,
+      34.0,
+      44.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 7,
+    "batch_index": 4,
+    "policy": {
+      "prob": 0.39782156731965673,
+      "entropy": 0.018499131492329308,
+      "target": 0.538752582361101,
+      "checker": 0.044926718826913
+    },
+    "mean_queries": 33.333333333333336,
+    "replicate_cv_pct": 5.65685424949238,
+    "replicate_queries": [
+      36.0,
+      32.0,
+      32.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 7,
+    "batch_index": 5,
+    "policy": {
+      "prob": 0.029649375275378878,
+      "entropy": 0.200955230853945,
+      "target": 0.6106678735197091,
+      "checker": 0.15872752035096702
+    },
+    "mean_queries": 40.0,
+    "replicate_cv_pct": 12.41638702145945,
+    "replicate_queries": [
+      37.0,
+      36.0,
+      47.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 7,
+    "batch_index": 6,
+    "policy": {
+      "prob": 0.015746637818883986,
+      "entropy": 0.37462282042703426,
+      "target": 0.5178922716810115,
+      "checker": 0.09173827007307017
+    },
+    "mean_queries": 36.0,
+    "replicate_cv_pct": 11.340230290662861,
+    "replicate_queries": [
+      36.0,
+      31.0,
+      41.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 7,
+    "batch_index": 7,
+    "policy": {
+      "prob": 0.2676026081983275,
+      "entropy": 0.1303964050176806,
+      "target": 0.5172238194379841,
+      "checker": 0.08477716734600778
+    },
+    "mean_queries": 37.666666666666664,
+    "replicate_cv_pct": 16.556006136167888,
+    "replicate_queries": [
+      36.0,
+      31.0,
+      46.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 7,
+    "batch_index": 8,
+    "policy": {
+      "prob": 0.07125331318123963,
+      "entropy": 0.03910270447957737,
+      "target": 0.5868813176079426,
+      "checker": 0.3027626647312403
+    },
+    "mean_queries": 40.333333333333336,
+    "replicate_cv_pct": 11.861735615212664,
+    "replicate_queries": [
+      38.0,
+      36.0,
+      47.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 8,
+    "batch_index": 1,
+    "policy": {
+      "prob": 0.37155330998863895,
+      "entropy": 0.03796605435959015,
+      "target": 0.4954540439960563,
+      "checker": 0.09502659165571464
+    },
+    "mean_queries": 39.0,
+    "replicate_cv_pct": 5.539094614023813,
+    "replicate_queries": [
+      41.0,
+      36.0,
+      40.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 8,
+    "batch_index": 2,
+    "policy": {
+      "prob": 0.6489494515746361,
+      "entropy": 0.022151008219760477,
+      "target": 0.30044324851896076,
+      "checker": 0.028456291686642432
+    },
+    "mean_queries": 38.666666666666664,
+    "replicate_cv_pct": 3.225566712736156,
+    "replicate_queries": [
+      40.0,
+      37.0,
+      39.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 8,
+    "batch_index": 3,
+    "policy": {
+      "prob": 0.2787491484766741,
+      "entropy": 0.10478534843869029,
+      "target": 0.6010169059499343,
+      "checker": 0.015448597134701468
+    },
+    "mean_queries": 39.0,
+    "replicate_cv_pct": 4.187161953475519,
+    "replicate_queries": [
+      41.0,
+      37.0,
+      39.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 8,
+    "batch_index": 4,
+    "policy": {
+      "prob": 0.509719654385766,
+      "entropy": 0.00483871980898585,
+      "target": 0.3326112899443665,
+      "checker": 0.15283033586088146
+    },
+    "mean_queries": 39.0,
+    "replicate_cv_pct": 5.539094614023813,
+    "replicate_queries": [
+      41.0,
+      36.0,
+      40.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 8,
+    "batch_index": 5,
+    "policy": {
+      "prob": 0.39517901922751003,
+      "entropy": 0.16624587160337057,
+      "target": 0.3633863323677621,
+      "checker": 0.07518877680135737
+    },
+    "mean_queries": 38.666666666666664,
+    "replicate_cv_pct": 5.3141500025594635,
+    "replicate_queries": [
+      41.0,
+      36.0,
+      39.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 8,
+    "batch_index": 6,
+    "policy": {
+      "prob": 0.013052776253763346,
+      "entropy": 0.4192666181643455,
+      "target": 0.55353020184872,
+      "checker": 0.014150403733171092
+    },
+    "mean_queries": 39.0,
+    "replicate_cv_pct": 4.187161953475519,
+    "replicate_queries": [
+      41.0,
+      37.0,
+      39.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 8,
+    "batch_index": 7,
+    "policy": {
+      "prob": 0.8599188424846907,
+      "entropy": 0.06379536439010439,
+      "target": 0.045105189375627686,
+      "checker": 0.03118060374957721
+    },
+    "mean_queries": 38.666666666666664,
+    "replicate_cv_pct": 6.451133425472312,
+    "replicate_queries": [
+      42.0,
+      38.0,
+      36.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  },
+  {
+    "cycle": 8,
+    "batch_index": 8,
+    "policy": {
+      "prob": 0.2147534316447088,
+      "entropy": 0.0025835740582231246,
+      "target": 0.6208634846320641,
+      "checker": 0.16179950966500403
+    },
+    "mean_queries": 45.666666666666664,
+    "replicate_cv_pct": 13.538129190504677,
+    "replicate_queries": [
+      51.0,
+      37.0,
+      49.0
+    ],
+    "mean_cv_error_rate": 0.0,
+    "mean_unknown_rate": 0.0
+  }
+]
