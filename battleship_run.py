@@ -53,10 +53,10 @@ def demo(strategy: str, seed: int, pause: float = 0.0):
 
     print("\n[Ground truth – hidden from learner]")
     gt_sym = {0: "·", 1: "■"}
-    header = "   " + " ".join(str(c) for c in range(10))
+    header = "   " + " ".join(str(c) for c in range(board.cols))
     print(header)
-    for r in range(10):
-        print(f"{r:2d} " + " ".join(gt_sym[board.grid[r, c]] for c in range(10)))
+    for r in range(board.rows):
+        print(f"{r:2d} " + " ".join(gt_sym[board.grid[r, c]] for c in range(board.cols)))
 
     input("\nPress Enter to start...\n")
 
