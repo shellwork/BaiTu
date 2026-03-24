@@ -9,13 +9,13 @@ Usage
   # Single comparison episode (all strategies, same board)
   python battleship_run.py --mode compare --seed 7
 
-  # Full experiment (n boards × 4 strategies)
+  # Full experiment (n boards × 5 strategies)
   python battleship_run.py --mode experiment --n_episodes 200
 
 Modes
 -----
   demo       : ASCII step-by-step walkthrough of one game
-  compare    : show all 4 strategies on the same board, print query counts
+  compare    : show all 5 strategies on the same board, print query counts
   experiment : run batch, save figures, print summary table
 """
 
@@ -142,7 +142,7 @@ def main():
         plot_learning_curves(results, save_dir=args.out_dir)
 
         # Episode detail for multiple strategies
-        for strategy in ["prob", "entropy", "hunt_target"]:
+        for strategy in ["prob", "entropy", "hunt_target", "pro_solver"]:
             # Pick episode with median query count for a representative example
             eps = results[strategy]
             counts = np.array([ep["n_queries"] for ep in eps])

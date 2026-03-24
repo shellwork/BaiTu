@@ -25,6 +25,7 @@ Strategies
   prob         : argmax P(hit)      — exploitation
   entropy      : argmax H(p)        — uncertainty sampling
   hunt_target  : battleship heuristic (ship mode only)
+  pro_solver   : hunt/target + probability density (ship mode only)
   grid         : row-by-row scan    (plate mode)
 
 ``Game`` is a thin subclass that uses ``board_rows`` / ``board_cols`` keyword
@@ -213,6 +214,107 @@ class BeliefModel:
         return True
 
     # ------------------------------------------------------------------
+    # Solver helpers (ship mode only)
+    # ------------------------------------------------------------------
+
+    def _count_placements(
+        self,
+        *,
+        must_overlap: Optional[Set[Tuple[int, int]]] = None,
+    ) -> np.ndarray:
+        """
+        Placement-counting engine used by the solver strategy.
+
+        For each remaining ship size, slide every valid horizontal and
+        vertical placement across the board and count how many cover
+        each unqueried cell.
+
+        Parameters
+        ----------
+        must_overlap : if given, only count placements that pass through
+                       at least one cell in this set (target mode).
+                       Cells in must_overlap are treated as passable —
+                       ships *can* sit on unsunk hits.
+
+        Returns the raw (unnormalised) density matrix.
+        """
+        nr, nc   = self.rows, self.cols
+        blockers = self.misses | self.sunk_cells
+        queried  = self._queried()
+        density  = np.zeros((nr, nc), dtype=float)
+
+        for size in set(self.remaining_sizes):
+            multiplier   = self.remaining_sizes.count(size)
+            size_density = np.zeros((nr, nc), dtype=float)
+
+            for horizontal in (True, False):
+                r_end = nr if horizontal else nr - size + 1
+                c_end = nc - size + 1 if horizontal else nc
+
+                for r in range(r_end):
+                    for c in range(c_end):
+                        if horizontal:
+                            positions = [(r, c + i) for i in range(size)]
+                        else:
+                            positions = [(r + i, c) for i in range(size)]
+
+                        # validity: no cell on a miss or sunk ship
+                        if any(p in blockers for p in positions):
+                            continue
+
+                        # target mode: require overlap with unsunk hits
+                        if must_overlap is not None:
+                            if not any(p in must_overlap for p in positions):
+                                continue
+
+                        # increment only unqueried cells
+                        for pr, pc in positions:
+                            if (pr, pc) not in queried:
+                                size_density[pr, pc] += 1.0
+
+            density += multiplier * size_density
+
+        return density
+
+    def _parity_boost(self, density: np.ndarray) -> np.ndarray:
+        """
+        Checkerboard parity boost for the solver's hunt mode.
+
+        Every ship of length >= 2 must straddle both parities, so we
+        only need to search one parity class.  We pick whichever has
+        more open cells and give those a mild multiplicative boost.
+
+        Skipped when only size-1 ships remain (non-standard).
+        """
+        if not self.remaining_sizes:
+            return density
+
+        min_size = min(self.remaining_sizes)
+        if min_size < 2:
+            return density
+
+        queried = self._queried()
+        nr, nc  = self.rows, self.cols
+
+        # count open cells per parity class
+        counts = [0, 0]
+        for r in range(nr):
+            for c in range(nc):
+                if (r, c) not in queried:
+                    counts[(r + c) % 2] += 1
+
+        preferred = 0 if counts[0] >= counts[1] else 1
+
+        boosted = density.copy()
+        boost_factor = 1.15   # mild 15% nudge
+        for r in range(nr):
+            for c in range(nc):
+                if (r + c) % 2 == preferred and (r, c) not in queried:
+                    boosted[r, c] *= boost_factor
+
+        return boosted
+
+    # ------------------------------------------------------------------
     # Acquisition functions
     # ------------------------------------------------------------------
 
@@ -239,7 +341,7 @@ class BeliefModel:
 
         Parameters
         ----------
-        strategy   : 'random' | 'prob' | 'entropy' | 'hunt_target' | 'grid'
+        strategy   : 'random' | 'prob' | 'entropy' | 'hunt_target' | 'pro_solver' | 'grid'
         grid_order : precomputed scan order for the 'grid' strategy
 
         Returns
@@ -297,10 +399,57 @@ class BeliefModel:
             checkers = [(r, c) for r, c in available if (r + c) % 2 == 0]
             return random.choice(checkers if checkers else available)
 
+        # hunt/target + probability density pro solver (ship mode)
+        elif strategy == "pro_solver":
+            unaccounted = self.hits - self.sunk_cells
+
+            # ── TARGET MODE: extend partially-hit ships ──────────
+            # Unsunk hit cells are passable; only placements that
+            # overlap at least one unsunk hit are counted, so the
+            # density peaks on the most likely ship extensions.
+            if unaccounted:
+                density = self._count_placements(must_overlap=unaccounted)
+
+                # zero out already-queried cells (safety)
+                for r, c in queried:
+                    density[r, c] = 0.0
+
+                if density.max() > 0:
+                    r, c = np.unravel_index(np.argmax(density), density.shape)
+                    return (int(r), int(c))
+
+                # fallback: random neighbour of any unsunk hit
+                candidates = []
+                for hr, hc in unaccounted:
+                    for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                        nr2, nc2 = hr + dr, hc + dc
+                        if (0 <= nr2 < nr and 0 <= nc2 < nc
+                                and (nr2, nc2) not in queried):
+                            candidates.append((nr2, nc2))
+                if candidates:
+                    return random.choice(candidates)
+
+            # ── HUNT MODE: full placement density + parity boost ─
+            # Enumerate all valid placements of every remaining
+            # ship size; apply checkerboard parity boost; pick the
+            # cell with the highest score.
+            density = self._count_placements()
+
+            for r, c in queried:
+                density[r, c] = 0.0
+
+            density = self._parity_boost(density)
+
+            if density.max() > 0:
+                r, c = np.unravel_index(np.argmax(density), density.shape)
+                return (int(r), int(c))
+
+            return random.choice(available)
+
         else:
             raise ValueError(
                 f"Unknown strategy '{strategy}'. "
-                f"Choose from: random, prob, entropy, hunt_target, grid"
+                f"Choose from: random, prob, entropy, hunt_target, pro_solver, grid"
             )
 
     # ------------------------------------------------------------------
