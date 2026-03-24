@@ -29,7 +29,7 @@ class Ship:
 
 class BattleshipBoard:
     """
-    Standard 10x10 Battleship board.
+    Battleship board (default 10×10, or rectangular e.g. 8×10 for plate area).
 
     Analogy to active learning:
         pool        = all unqueried cells
@@ -51,24 +51,22 @@ class BattleshipBoard:
         Parameters
         ----------
         size : int
-            Square board side length when ``rows``/``cols`` are omitted.
+            Square board side when ``rows``/``cols`` are omitted.
         rows, cols : optional int
-            Rectangular board (e.g. 8×12 for a 96-well plate). If only one
-            of ``rows``/``cols`` is given, the other defaults to ``size``.
+            Rectangular board (e.g. 8×10 active wells). If only one is given,
+            the other defaults to ``size``.
         """
         if rows is not None or cols is not None:
             self.rows = int(rows if rows is not None else size)
             self.cols = int(cols if cols is not None else size)
         else:
             self.rows = self.cols = int(size)
-        self.size = max(self.rows, self.cols)  # legacy alias for square callers
+        self.size = max(self.rows, self.cols)
 
         self.ship_sizes = ship_sizes or self.DEFAULT_SHIPS
         self._rng = random.Random(seed)
 
-        # Ground-truth grid (hidden from learner)
         self.grid = np.zeros((self.rows, self.cols), dtype=int)
-        # Observation grid visible to learner: -1=unknown, 0=miss, 1=hit
         self.observed = np.full((self.rows, self.cols), -1, dtype=int)
 
         self.ships: List[Ship] = []
@@ -77,10 +75,6 @@ class BattleshipBoard:
 
         self._place_ships()
         self.total_ship_cells: int = int(np.sum(self.grid))
-
-    # ------------------------------------------------------------------
-    # Setup
-    # ------------------------------------------------------------------
 
     def _place_ships(self):
         for size in self.ship_sizes:
@@ -112,10 +106,6 @@ class BattleshipBoard:
             if not placed:
                 raise RuntimeError(f"Could not place ship of size {size}")
 
-    # ------------------------------------------------------------------
-    # Oracle
-    # ------------------------------------------------------------------
-
     def query(self, row: int, col: int) -> Tuple[bool, Optional[Ship]]:
         """
         Query a cell – this is the *labelling oracle* in active learning.
@@ -141,10 +131,6 @@ class BattleshipBoard:
         self.query_history.append((row, col, is_hit))
         return is_hit, sunk_ship
 
-    # ------------------------------------------------------------------
-    # State helpers
-    # ------------------------------------------------------------------
-
     def is_game_over(self) -> bool:
         return all(s.is_sunk() for s in self.ships)
 
@@ -164,10 +150,6 @@ class BattleshipBoard:
             for c in range(self.cols)
             if self.observed[r, c] == -1
         ]
-
-    # ------------------------------------------------------------------
-    # Display
-    # ------------------------------------------------------------------
 
     def __repr__(self) -> str:
         sym = {-1: "·", 0: "O", 1: "X"}

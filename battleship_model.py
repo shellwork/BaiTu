@@ -26,6 +26,9 @@ Strategies
   entropy      : argmax H(p)        — uncertainty sampling
   hunt_target  : battleship heuristic (ship mode only)
   grid         : row-by-row scan    (plate mode)
+
+``Game`` is a thin subclass that uses ``board_rows`` / ``board_cols`` keyword
+names (merge compatibility with scripts that imported ``Game``).
 """
 
 from __future__ import annotations
@@ -44,7 +47,7 @@ class BeliefModel:
     Parameters
     ----------
     board_size   : int – used when rows == cols (legacy, default 10)
-    rows, cols   : override for non-square boards (e.g. 8×12 plate)
+    rows, cols   : override for non-square boards (e.g. 8×10 plate area)
     ship_sizes   : list of ship sizes; pass [] for plate mode
     plate_mode   : force plate mode regardless of ship_sizes
     prior_purple : prior P(positive) for plate mode (default 0.25)
@@ -253,11 +256,9 @@ class BeliefModel:
         if not available:
             return None
 
-        # ── Random baseline ────────────────────────────────────────────
         if strategy == "random":
             return random.choice(available)
 
-        # ── Exploitation: argmax P(hit) ────────────────────────────────
         elif strategy == "prob":
             scores = self.prob_map.copy()
             for r, c in queried:
@@ -265,7 +266,6 @@ class BeliefModel:
             r, c = np.unravel_index(np.argmax(scores), scores.shape)
             return (int(r), int(c))
 
-        # ── Uncertainty sampling: argmax H(p) ─────────────────────────
         elif strategy == "entropy":
             scores = self.get_entropy_map()
             for r, c in queried:
@@ -273,7 +273,6 @@ class BeliefModel:
             r, c = np.unravel_index(np.argmax(scores), scores.shape)
             return (int(r), int(c))
 
-        # ── Systematic scan (plate mode) ──────────────────────────────
         elif strategy == "grid":
             order = grid_order or [
                 (r, c) for r in range(nr) for c in range(nc)
@@ -283,7 +282,6 @@ class BeliefModel:
                     return pos
             return available[0]
 
-        # ── Classic Hunt-Target heuristic (ship mode) ─────────────────
         elif strategy == "hunt_target":
             unaccounted = self.hits - self.sunk_cells
             if unaccounted:
@@ -296,7 +294,6 @@ class BeliefModel:
                             candidates.append((nr2, nc2))
                 if candidates:
                     return random.choice(candidates)
-            # Hunt: checkerboard pattern
             checkers = [(r, c) for r, c in available if (r + c) % 2 == 0]
             return random.choice(checkers if checkers else available)
 
@@ -320,3 +317,19 @@ class BeliefModel:
             "max_prob":        float(self.prob_map.max()),
             "total_entropy":   float(self.get_entropy_map().sum()),
         }
+
+
+class Game(BeliefModel):
+    """
+    Same as ``BeliefModel`` but with ``board_rows`` / ``board_cols`` parameters
+    for scripts that used the merged-in ``Game`` API.
+    """
+
+    def __init__(
+        self,
+        board_rows: int = 10,
+        board_cols: int = 10,
+        ship_sizes: Optional[List[int]] = None,
+        **kwargs,
+    ):
+        super().__init__(rows=board_rows, cols=board_cols, ship_sizes=ship_sizes, **kwargs)

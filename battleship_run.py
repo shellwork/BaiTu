@@ -26,7 +26,7 @@ import time
 import numpy as np
 
 from battleship_env import BattleshipBoard
-from battleship_model import BeliefModel
+from battleship_model import Game
 from battleship_experiment import (
     LABELS,
     STRATEGIES,
@@ -48,8 +48,8 @@ def demo(strategy: str, seed: int, pause: float = 0.0):
     print(f" BATTLESHIP  |  strategy={LABELS[strategy]}  |  seed={seed}")
     print(f"{'='*55}")
 
-    board = BattleshipBoard(size=10, seed=seed)
-    model = BeliefModel(board_size=10)
+    board = BattleshipBoard(rows=8, cols=10, seed=seed)
+    model = Game(board_rows=8, board_cols=10)
 
     print("\n[Ground truth – hidden from learner]")
     gt_sym = {0: "·", 1: "■"}
@@ -141,8 +141,8 @@ def main():
         plot_comparison(results, save_dir=args.out_dir)
         plot_learning_curves(results, save_dir=args.out_dir)
 
-        # Episode detail for the two most interesting strategies
-        for strategy in ["prob", "entropy"]:
+        # Episode detail for multiple strategies
+        for strategy in ["prob", "entropy", "hunt_target"]:
             # Pick episode with median query count for a representative example
             eps = results[strategy]
             counts = np.array([ep["n_queries"] for ep in eps])
