@@ -26,7 +26,7 @@ import time
 import numpy as np
 
 from battleship_env import BattleshipBoard
-from battleship_model import BeliefModel
+from battleship_model import Game
 from battleship_experiment import (
     LABELS,
     STRATEGIES,
@@ -49,7 +49,7 @@ def demo(strategy: str, seed: int, pause: float = 0.0):
     print(f"{'='*55}")
 
     board = BattleshipBoard(rows=8, cols=10, seed=seed)
-    model = BeliefModel(board_rows=8, board_cols=10)
+    model = Game(board_rows=8, board_cols=10)
 
     print("\n[Ground truth – hidden from learner]")
     gt_sym = {0: "·", 1: "■"}

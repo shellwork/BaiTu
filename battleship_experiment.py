@@ -21,7 +21,7 @@ from matplotlib.patches import Rectangle
 import numpy as np
 
 from battleship_env import BattleshipBoard
-from battleship_model import BeliefModel
+from battleship_model import Game
 
 # ------------------------------------------------------------------
 # Config
@@ -55,7 +55,7 @@ def run_episode(strategy: str, seed: int, board_rows: int = 8, board_cols: int =
     Returns a dict with per-step history and summary statistics.
     """
     board = BattleshipBoard(rows=board_rows, cols=board_cols, seed=seed)
-    model = BeliefModel(board_rows=board_rows, board_cols=board_cols)
+    model = Game(board_rows=board_rows, board_cols=board_cols)
 
     history: List[Dict] = []
 
@@ -260,7 +260,7 @@ def plot_episode_detail(episode: Dict, save_dir: str = "."):
 
     # Re-run episode to capture intermediate states
     replay_board = BattleshipBoard(rows=board.size[0], cols=board.size[1], seed=episode["seed"])
-    replay_model = BeliefModel(board_rows=board.size[0], board_cols=board.size[1])
+    replay_model = Game(board_rows=board.size[0], board_cols=board.size[1])
 
     # Choose snapshot steps
     snap_steps = sorted(set([
