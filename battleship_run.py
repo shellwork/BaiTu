@@ -26,6 +26,7 @@ import time
 import numpy as np
 
 from battleship_env import BattleshipBoard
+from battleship_matrix_oracle import make_battleship_oracle
 from battleship_model import Game
 from battleship_experiment import (
     LABELS,
@@ -42,14 +43,39 @@ from battleship_experiment import (
 # Demo mode
 # ------------------------------------------------------------------
 
-def demo(strategy: str, seed: int, pause: float = 0.0):
+def _format_observed_board(observed: np.ndarray) -> str:
+    sym = {-1: "·", 0: "O", 1: "X"}
+    rows, cols = observed.shape
+    header = "   " + " ".join(str(c) for c in range(cols))
+    lines = [header]
+    for r in range(rows):
+        lines.append(f"{r:2d} " + " ".join(sym[int(observed[r, c])] for c in range(cols)))
+    return "\n".join(lines)
+
+def demo(
+    strategy: str,
+    seed: int,
+    pause: float = 0.0,
+    oracle_mode: str = "board",
+    *,
+    rgb_l2_max: float | None = None,
+    rgb_per_channel_delta: float | None = None,
+):
     """Step-through a single episode in the terminal."""
     print(f"\n{'='*55}")
-    print(f" BATTLESHIP  |  strategy={LABELS[strategy]}  |  seed={seed}")
+    print(f" BATTLESHIP  |  strategy={LABELS[strategy]}  |  seed={seed}  |  oracle={oracle_mode}")
     print(f"{'='*55}")
 
     board = BattleshipBoard(rows=8, cols=10, seed=seed)
     model = Game(board_rows=8, board_cols=10)
+    oracle = make_battleship_oracle(
+        board,
+        seed=seed,
+        oracle_mode=oracle_mode,
+        rgb_l2_max=rgb_l2_max,
+        rgb_per_channel_delta=rgb_per_channel_delta,
+    )
+    observed = np.full((board.rows, board.cols), -1, dtype=int)
 
     print("\n[Ground truth – hidden from learner]")
     gt_sym = {0: "·", 1: "■"}
@@ -66,15 +92,18 @@ def demo(strategy: str, seed: int, pause: float = 0.0):
             break
         row, col = pos
 
-        is_hit, sunk_ship = board.query(row, col)
+        is_hit, sunk_ship, actual_hit = oracle.query(row, col)
         model.update(row, col, is_hit, sunk_ship)
+        observed[row, col] = int(is_hit)
 
         result_str = "HIT 🎯" if is_hit else "miss"
         if sunk_ship:
             result_str += f"  ← SUNK size-{sunk_ship.size} ship!"
+        if is_hit != actual_hit:
+            result_str += "  [matrix/readout mismatch vs truth]"
 
         print(f"  Step {board.n_queries:3d} | query ({row},{col}) → {result_str}")
-        print(board)
+        print(_format_observed_board(observed))
         print(f"  [entropy={model.get_entropy_map().sum():.2f}  max_prob={model.prob_map.max():.3f}]")
 
         if pause > 0:
@@ -91,12 +120,24 @@ def demo(strategy: str, seed: int, pause: float = 0.0):
 # Compare mode
 # ------------------------------------------------------------------
 
-def compare(seed: int):
+def compare(
+    seed: int,
+    oracle_mode: str = "board",
+    *,
+    rgb_l2_max: float | None = None,
+    rgb_per_channel_delta: float | None = None,
+):
     """Run all strategies on the same board and show query counts."""
-    print(f"\n[Compare mode – seed={seed}]\n")
+    print(f"\n[Compare mode – seed={seed}, oracle={oracle_mode}]\n")
     results = {}
     for strategy in STRATEGIES:
-        ep = run_episode(strategy, seed=seed)
+        ep = run_episode(
+            strategy,
+            seed=seed,
+            oracle_mode=oracle_mode,
+            rgb_l2_max=rgb_l2_max,
+            rgb_per_channel_delta=rgb_per_channel_delta,
+        )
         results[strategy] = ep
         print(f"  {LABELS[strategy]:<35} → {ep['n_queries']:3d} queries")
     return results
@@ -119,19 +160,43 @@ def main():
                         help="Seconds between steps in demo mode (0=manual)")
     parser.add_argument("--out_dir",    default="battleship_results",
                         help="Directory for saved figures (experiment mode)")
+    parser.add_argument("--oracle_mode", choices=["board", "image"], default="board",
+                        help="board: use matrix from Battleship grid; image: decode matrix from synthetic plate image.")
+    parser.add_argument("--rgb_l2_max", type=float, default=None,
+                        help="Optional RGB L2 tolerance for image readout mode.")
+    parser.add_argument("--rgb_per_channel_delta", type=float, default=None,
+                        help="Optional per-channel RGB tolerance for image readout mode.")
     args = parser.parse_args()
 
     if args.mode == "demo":
-        demo(args.strategy, seed=args.seed, pause=args.pause)
+        demo(
+            args.strategy,
+            seed=args.seed,
+            pause=args.pause,
+            oracle_mode=args.oracle_mode,
+            rgb_l2_max=args.rgb_l2_max,
+            rgb_per_channel_delta=args.rgb_per_channel_delta,
+        )
 
     elif args.mode == "compare":
-        compare(seed=args.seed)
+        compare(
+            seed=args.seed,
+            oracle_mode=args.oracle_mode,
+            rgb_l2_max=args.rgb_l2_max,
+            rgb_per_channel_delta=args.rgb_per_channel_delta,
+        )
 
     elif args.mode == "experiment":
         os.makedirs(args.out_dir, exist_ok=True)
         print(f"\nRunning {args.n_episodes} episodes × {len(STRATEGIES)} strategies …")
         t0 = time.time()
-        results = run_experiment(n_episodes=args.n_episodes, verbose=True)
+        results = run_experiment(
+            n_episodes=args.n_episodes,
+            verbose=True,
+            oracle_mode=args.oracle_mode,
+            rgb_l2_max=args.rgb_l2_max,
+            rgb_per_channel_delta=args.rgb_per_channel_delta,
+        )
         elapsed = time.time() - t0
         print(f"\nFinished in {elapsed:.1f}s")
 
@@ -147,7 +212,13 @@ def main():
             eps = results[strategy]
             counts = np.array([ep["n_queries"] for ep in eps])
             median_seed = eps[int(np.argsort(counts)[len(counts) // 2])]["seed"]
-            ep = run_episode(strategy, seed=median_seed)
+            ep = run_episode(
+                strategy,
+                seed=median_seed,
+                oracle_mode=args.oracle_mode,
+                rgb_l2_max=args.rgb_l2_max,
+                rgb_per_channel_delta=args.rgb_per_channel_delta,
+            )
             plot_episode_detail(ep, save_dir=args.out_dir)
 
         print(f"\nAll figures saved to '{args.out_dir}/'")

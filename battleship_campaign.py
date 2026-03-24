@@ -29,13 +29,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from battleship_env import BattleshipBoard
+from battleship_matrix_oracle import BattleshipMatrixOracle, make_battleship_oracle
 from battleship_model import Game
 from battleship_plate_simulation import (
     ACTIVE_COLS,
     DEFAULT_RGB_L2_TOLERANCE,
-    get_fixed_well_geometry,
-    query_well_fixed_geometry_rgb,
-    simulate_photo_from_board,
 )
 
 
@@ -94,11 +92,10 @@ class StoppingDecision:
 
 class BattleshipImageOracle:
     """
-    Read wells from the synthetic plate photo using fixed geometry + mean RGB in ROI.
+    Backward-compatible wrapper around the shared matrix oracle.
 
-    No HSV / Hough pipeline: sample the same inner-disk pixels as ``PlateSimulator``
-    layout (``get_fixed_well_geometry``), compare mean RGB to ship/water prototypes
-    within a tolerance (L2 ball, optional per-channel box).
+    The synthetic plate image is decoded once into an active 8x10 matrix, and all
+    later queries are simple table lookups on that matrix.
     """
 
     def __init__(
@@ -109,54 +106,24 @@ class BattleshipImageOracle:
         rgb_l2_max: Optional[float] = None,
         rgb_per_channel_delta: Optional[float] = None,
     ):
-        self.board = board
-        self.image = simulate_photo_from_board(board, seed=seed)
-        self.geometry = get_fixed_well_geometry(seed=seed)
-        self._rgb_kw: Dict = {}
-        if rgb_l2_max is not None:
-            self._rgb_kw["l2_max"] = float(rgb_l2_max)
-        if rgb_per_channel_delta is not None:
-            self._rgb_kw["per_channel_delta"] = float(rgb_per_channel_delta)
-        self.n_calls = 0
-        self.n_unknown = 0
-        self.n_cv_errors = 0
+        self._oracle: BattleshipMatrixOracle = make_battleship_oracle(
+            board,
+            seed=seed,
+            oracle_mode="image",
+            rgb_l2_max=rgb_l2_max,
+            rgb_per_channel_delta=rgb_per_channel_delta,
+        )
 
     def query(self, row: int, col: int) -> Tuple[bool, Optional[object], bool]:
-        """
-        Returns
-        -------
-        observed_hit : bool
-            What the learner observes through the detector.
-        sunk_ship : Ship | None
-            Passed to the learner only if the hit was truly observed as a hit.
-        actual_hit : bool
-            Ground-truth hit used for QC accounting.
-        """
-        self.n_calls += 1
-        label, _, _ = query_well_fixed_geometry_rgb(
-            self.image, row, col, self.geometry, **self._rgb_kw
-        )
-        actual_hit, actual_sunk_ship = self.board.query(row, col)
-
-        if label == "unknown":
-            self.n_unknown += 1
-            observed_hit = bool(actual_hit)
-        else:
-            observed_hit = label == "ship"
-
-        if observed_hit != bool(actual_hit):
-            self.n_cv_errors += 1
-
-        sunk_for_model = actual_sunk_ship if (observed_hit and actual_hit) else None
-        return observed_hit, sunk_for_model, bool(actual_hit)
+        return self._oracle.query(row, col)
 
     @property
     def cv_error_rate(self) -> float:
-        return self.n_cv_errors / max(1, self.n_calls)
+        return self._oracle.cv_error_rate
 
     @property
     def unknown_rate(self) -> float:
-        return self.n_unknown / max(1, self.n_calls)
+        return self._oracle.unknown_rate
 
 
 class KernelEnsembleSurrogate:
@@ -361,15 +328,12 @@ def run_weighted_episode(
 ) -> Dict:
     board = BattleshipBoard(rows=8, cols=ACTIVE_COLS, seed=seed)
     model = Game(board_rows=8, board_cols=ACTIVE_COLS)
-    oracle = (
-        BattleshipImageOracle(
-            board,
-            seed=seed,
-            rgb_l2_max=rgb_l2_max,
-            rgb_per_channel_delta=rgb_per_channel_delta,
-        )
-        if use_image_oracle
-        else None
+    oracle = make_battleship_oracle(
+        board,
+        seed=seed,
+        oracle_mode="image" if use_image_oracle else "board",
+        rgb_l2_max=rgb_l2_max,
+        rgb_per_channel_delta=rgb_per_channel_delta,
     )
 
     history: List[Dict] = []
@@ -379,11 +343,7 @@ def run_weighted_episode(
             break
 
         row, col = pos
-        if oracle is None:
-            observed_hit, sunk_ship = board.query(row, col)
-            actual_hit = observed_hit
-        else:
-            observed_hit, sunk_ship, actual_hit = oracle.query(row, col)
+        observed_hit, sunk_ship, actual_hit = oracle.query(row, col)
 
         model.update(row, col, observed_hit, sunk_ship)
         history.append(
@@ -657,17 +617,18 @@ def _run_random_episode(seed: int, use_image_oracle: bool = True) -> int:
     import random as _random
     board = BattleshipBoard(rows=8, cols=ACTIVE_COLS, seed=seed)
     model = Game(board_rows=8, board_cols=ACTIVE_COLS)
-    oracle = BattleshipImageOracle(board, seed=seed) if use_image_oracle else None
+    oracle = make_battleship_oracle(
+        board,
+        seed=seed,
+        oracle_mode="image" if use_image_oracle else "board",
+    )
     while not board.is_game_over():
         available = [(r, c) for r in range(board.rows) for c in range(board.cols)
                      if board.observed[r, c] == -1]
         if not available:
             break
         row, col = _random.choice(available)
-        if oracle is None:
-            is_hit, sunk = board.query(row, col)
-        else:
-            is_hit, sunk, _ = oracle.query(row, col)
+        is_hit, sunk, _ = oracle.query(row, col)
         model.update(row, col, is_hit, sunk)
     return board.n_queries
 

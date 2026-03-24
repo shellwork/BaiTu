@@ -21,6 +21,7 @@ from matplotlib.patches import Rectangle
 import numpy as np
 
 from battleship_env import BattleshipBoard
+from battleship_matrix_oracle import make_battleship_oracle
 from battleship_model import Game
 
 # ------------------------------------------------------------------
@@ -50,7 +51,16 @@ COLORS: Dict[str, str] = {
 # Single episode
 # ------------------------------------------------------------------
 
-def run_episode(strategy: str, seed: int, board_rows: int = 8, board_cols: int = 10) -> Dict:
+def run_episode(
+    strategy: str,
+    seed: int,
+    board_rows: int = 8,
+    board_cols: int = 10,
+    oracle_mode: str = "board",
+    *,
+    rgb_l2_max: Optional[float] = None,
+    rgb_per_channel_delta: Optional[float] = None,
+) -> Dict:
     """
     Play one complete game with the given acquisition strategy.
 
@@ -58,6 +68,13 @@ def run_episode(strategy: str, seed: int, board_rows: int = 8, board_cols: int =
     """
     board = BattleshipBoard(rows=board_rows, cols=board_cols, seed=seed)
     model = Game(board_rows=board_rows, board_cols=board_cols)
+    oracle = make_battleship_oracle(
+        board,
+        seed=seed,
+        oracle_mode=oracle_mode,
+        rgb_l2_max=rgb_l2_max,
+        rgb_per_channel_delta=rgb_per_channel_delta,
+    )
 
     history: List[Dict] = []
 
@@ -67,14 +84,16 @@ def run_episode(strategy: str, seed: int, board_rows: int = 8, board_cols: int =
             break
 
         row, col = pos
-        is_hit, sunk_ship = board.query(row, col)
-        model.update(row, col, is_hit, sunk_ship)
+        observed_hit, sunk_ship, actual_hit = oracle.query(row, col)
+        model.update(row, col, observed_hit, sunk_ship)
 
         history.append({
             "step":            board.n_queries,
             "row":             row,
             "col":             col,
-            "is_hit":          is_hit,
+            "is_hit":          observed_hit,
+            "observed_hit":    observed_hit,
+            "actual_hit":      actual_hit,
             "ships_sunk":      len(board.get_sunk_ships()),
             "cells_found":     board.total_ship_cells - board.get_remaining_ship_cells(),
             "frac_found":      (board.total_ship_cells - board.get_remaining_ship_cells())
@@ -86,8 +105,11 @@ def run_episode(strategy: str, seed: int, board_rows: int = 8, board_cols: int =
     return {
         "strategy":         strategy,
         "seed":             seed,
+        "oracle_mode":      oracle_mode,
         "n_queries":        board.n_queries,
         "total_ship_cells": board.total_ship_cells,
+        "cv_error_rate":    oracle.cv_error_rate,
+        "unknown_rate":     oracle.unknown_rate,
         "history":          history,
         # keep final objects for detailed plots
         "board":            board,
@@ -105,6 +127,10 @@ def run_experiment(
     board_rows: int = 8,
     board_cols: int = 10,
     verbose: bool = True,
+    oracle_mode: str = "board",
+    *,
+    rgb_l2_max: Optional[float] = None,
+    rgb_per_channel_delta: Optional[float] = None,
 ) -> Dict[str, List[Dict]]:
     """
     Run *n_episodes* games per strategy, all on the same random seeds so
@@ -117,7 +143,15 @@ def run_experiment(
 
     for seed in range(n_episodes):
         for strategy in strategies:
-            ep = run_episode(strategy, seed=seed, board_rows=board_rows, board_cols=board_cols)
+            ep = run_episode(
+                strategy,
+                seed=seed,
+                board_rows=board_rows,
+                board_cols=board_cols,
+                oracle_mode=oracle_mode,
+                rgb_l2_max=rgb_l2_max,
+                rgb_per_channel_delta=rgb_per_channel_delta,
+            )
             results[strategy].append(ep)
 
         if verbose and (seed + 1) % 50 == 0:
@@ -260,9 +294,10 @@ def plot_episode_detail(episode: Dict, save_dir: str = "."):
     strategy = episode["strategy"]
     total_steps = len(history)
 
-    # Re-run episode to capture intermediate states
+    # Replay the recorded observations so image-decoded runs stay faithful.
     replay_board = BattleshipBoard(rows=nr, cols=nc, seed=episode["seed"])
     replay_model = Game(board_rows=nr, board_cols=nc)
+    replay_observed = np.full((nr, nc), -1, dtype=int)
 
     # Choose snapshot steps
     snap_steps = sorted(set([
@@ -276,19 +311,18 @@ def plot_episode_detail(episode: Dict, save_dir: str = "."):
     snap_steps = list(dict.fromkeys(snap_steps))[:6]  # deduplicate, max 6
 
     snapshots = []
-    step = 0
-    while not replay_board.is_game_over():
-        pos = replay_model.select_query(strategy)
-        if pos is None:
-            break
-        r, c = pos
-        is_hit, sunk = replay_board.query(r, c)
-        replay_model.update(r, c, is_hit, sunk)
-        step += 1
+    for entry in history:
+        r, c = int(entry["row"]), int(entry["col"])
+        observed_hit = bool(entry.get("observed_hit", entry["is_hit"]))
+        actual_hit, actual_sunk = replay_board.query(r, c)
+        sunk_for_model = actual_sunk if (observed_hit and actual_hit) else None
+        replay_model.update(r, c, observed_hit, sunk_for_model)
+        replay_observed[r, c] = int(observed_hit)
+        step = int(entry["step"])
         if step in snap_steps:
             snapshots.append((
                 step,
-                replay_board.observed.copy(),
+                replay_observed.copy(),
                 replay_board.grid.copy(),
                 replay_model.prob_map.copy(),
                 replay_model.get_entropy_map().copy(),
