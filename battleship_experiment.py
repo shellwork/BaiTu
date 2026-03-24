@@ -27,13 +27,14 @@ from battleship_model import Game
 # Config
 # ------------------------------------------------------------------
 
-STRATEGIES: List[str] = ["random", "prob", "entropy", "hunt_target"]
+STRATEGIES: List[str] = ["random", "prob", "entropy", "hunt_target", "pro_solver"]
 
 LABELS: Dict[str, str] = {
     "random":      "Random (baseline)",
     "prob":        "Max Probability (exploit)",
     "entropy":     "Max Entropy (uncertainty)",
     "hunt_target": "Hunt-Target (heuristic)",
+    "pro_solver": "Hunt/Target + Density (pro solver)",
 }
 
 COLORS: Dict[str, str] = {
@@ -41,6 +42,7 @@ COLORS: Dict[str, str] = {
     "prob":        "#2ecc71",
     "entropy":     "#3498db",
     "hunt_target": "#f39c12",
+    "pro_solver": "#9b59b6",
 }
 
 
