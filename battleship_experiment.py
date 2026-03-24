@@ -251,14 +251,14 @@ def plot_episode_detail(episode: Dict, save_dir: str = "."):
     Shows board observation + probability map at 6 key steps.
     """
     board = episode["board"]
-    n = board.size
+    nr, nc = board.rows, board.cols
     history = episode["history"]
     strategy = episode["strategy"]
     total_steps = len(history)
 
     # Re-run episode to capture intermediate states
-    replay_board = BattleshipBoard(size=n, seed=episode["seed"])
-    replay_model = BeliefModel(board_size=n)
+    replay_board = BattleshipBoard(rows=nr, cols=nc, seed=episode["seed"])
+    replay_model = BeliefModel(rows=nr, cols=nc)
 
     # Choose snapshot steps
     snap_steps = sorted(set([
@@ -307,8 +307,8 @@ def plot_episode_detail(episode: Dict, save_dir: str = "."):
         disp[obs == -1] = 0.5  # unknown → grey
         im = ax_top.imshow(disp, vmin=0, vmax=1, cmap="RdYlGn", interpolation="nearest")
         # Mark true ship positions (faint outline)
-        for r in range(n):
-            for c in range(n):
+        for r in range(nr):
+            for c in range(nc):
                 if grid[r, c] == 1 and obs[r, c] == -1:
                     ax_top.add_patch(plt.Rectangle(
                         (c - 0.5, r - 0.5), 1, 1,
@@ -346,6 +346,7 @@ def print_summary(results: Dict[str, List[Dict]]):
         print(f"{LABELS[s]:<35} {q.mean():>6.1f} {q.std():>6.1f} {q.min():>5} {q.max():>5}")
     print("=" * 60)
     ship_cells = results[list(results.keys())[0]][0]["total_ship_cells"]
-    board_cells = results[list(results.keys())[0]][0]["board"].size ** 2
+    b0 = results[list(results.keys())[0]][0]["board"]
+    board_cells = b0.rows * b0.cols
     print(f"\nBoard: {board_cells} cells | Ship cells: {ship_cells} "
           f"({100*ship_cells/board_cells:.0f}%)\n")

@@ -29,6 +29,10 @@ BLUE_H   = (88,  128)
 MIN_S    = 70
 MIN_V    = 55
 
+# Red hue wraps at 0/180 in OpenCV HSV (H in 0..180)
+RED_H_LOW_WRAP  = (165, 180)
+RED_H_HIGH_WRAP = (0, 15)
+
 
 class PlateDetector:
     """
@@ -44,8 +48,21 @@ class PlateDetector:
     ROWS = 8
     COLS = 12
 
-    def __init__(self, geometry: Optional[Dict] = None):
+    def __init__(
+        self,
+        geometry: Optional[Dict] = None,
+        color_mode: str = "purple_blue",
+    ):
+        """
+        color_mode
+        ----------
+        ``purple_blue`` : positive = purple reagent (default, screening plates)
+        ``red_blue``    : positive = red liquid, negative = blue (battleship / ship–water sim)
+        """
+        if color_mode not in ("purple_blue", "red_blue"):
+            raise ValueError("color_mode must be 'purple_blue' or 'red_blue'")
         self.geometry = geometry
+        self.color_mode = color_mode
 
     # ------------------------------------------------------------------
     # Top-level entry point
@@ -72,7 +89,7 @@ class PlateDetector:
 
         Returns
         -------
-        label    : 'purple' | 'blue' | 'unknown'
+        label    : 'purple'|'blue' or 'red'|'blue' | 'unknown' (see ``color_mode``)
         mean_bgr : np.ndarray (3,)
         confidence : float [0, 1]
         """
@@ -96,7 +113,7 @@ class PlateDetector:
         for ri, cy in enumerate(g["row_centers"]):
             for ci, cx in enumerate(g["col_centers"]):
                 label, _, _ = self._classify_well(image, cx, cy, g["well_radius"])
-                labels[ri, ci] = {"purple": 1, "blue": 0}.get(label, -1)
+                labels[ri, ci] = self._label_to_int(label)
 
         return labels
 
@@ -126,7 +143,7 @@ class PlateDetector:
         for ri, cy in enumerate(sorted(row_c)):
             for ci, cx in enumerate(sorted(col_c)):
                 label, _, _ = self._classify_well(image, cx, cy, median_r)
-                labels[ri, ci] = {"purple": 1, "blue": 0}.get(label, -1)
+                labels[ri, ci] = self._label_to_int(label)
 
         detected_geom = {
             "rows":        self.ROWS,
@@ -172,6 +189,11 @@ class PlateDetector:
     # Colour classification
     # ------------------------------------------------------------------
 
+    def _label_to_int(self, label: str) -> int:
+        if self.color_mode == "purple_blue":
+            return {"purple": 1, "blue": 0}.get(label, -1)
+        return {"red": 1, "blue": 0}.get(label, -1)
+
     def _classify_well(
         self, image: np.ndarray, cx: int, cy: int, radius: int
     ) -> Tuple[str, np.ndarray, float]:
@@ -199,30 +221,44 @@ class PlateDetector:
         mean_V = float(px_hsv[:, 2].mean())
 
         # Fraction of pixels that land in each colour range
-        purple_mask = (
-            (px_hsv[:, 0] >= PURPLE_H[0]) & (px_hsv[:, 0] <= PURPLE_H[1]) &
-            (px_hsv[:, 1] >= MIN_S) & (px_hsv[:, 2] >= MIN_V)
-        )
+        sat_ok = (px_hsv[:, 1] >= MIN_S) & (px_hsv[:, 2] >= MIN_V)
         blue_mask = (
-            (px_hsv[:, 0] >= BLUE_H[0]) & (px_hsv[:, 0] <= BLUE_H[1]) &
-            (px_hsv[:, 1] >= MIN_S) & (px_hsv[:, 2] >= MIN_V)
+            (px_hsv[:, 0] >= BLUE_H[0]) & (px_hsv[:, 0] <= BLUE_H[1]) & sat_ok
         )
+
+        if self.color_mode == "purple_blue":
+            pos_mask = (
+                (px_hsv[:, 0] >= PURPLE_H[0]) & (px_hsv[:, 0] <= PURPLE_H[1]) &
+                sat_ok
+            )
+            pos_name, neg_name = "purple", "blue"
+        else:
+            h = px_hsv[:, 0]
+            pos_mask = (
+                ((h >= RED_H_LOW_WRAP[0]) & (h <= RED_H_LOW_WRAP[1])) |
+                ((h >= RED_H_HIGH_WRAP[0]) & (h <= RED_H_HIGH_WRAP[1]))
+            ) & sat_ok
+            pos_name, neg_name = "red", "blue"
 
         n = len(px_hsv)
-        frac_purple = purple_mask.sum() / n
-        frac_blue   = blue_mask.sum()   / n
+        frac_pos = pos_mask.sum() / n
+        frac_blue = blue_mask.sum() / n
 
-        if frac_purple > frac_blue and frac_purple > 0.35:
-            return "purple", mean_bgr, float(frac_purple)
-        if frac_blue > frac_purple and frac_blue > 0.35:
-            return "blue", mean_bgr, float(frac_blue)
+        if frac_pos > frac_blue and frac_pos > 0.35:
+            return pos_name, mean_bgr, float(frac_pos)
+        if frac_blue > frac_pos and frac_blue > 0.35:
+            return neg_name, mean_bgr, float(frac_blue)
 
         # Tie-break using mean hue
         if mean_S >= MIN_S and mean_V >= MIN_V:
-            if PURPLE_H[0] <= mean_H <= PURPLE_H[1]:
-                return "purple", mean_bgr, 0.5
+            if self.color_mode == "purple_blue":
+                if PURPLE_H[0] <= mean_H <= PURPLE_H[1]:
+                    return pos_name, mean_bgr, 0.5
+            else:
+                if mean_H >= RED_H_LOW_WRAP[0] or mean_H <= RED_H_HIGH_WRAP[1]:
+                    return pos_name, mean_bgr, 0.5
             if BLUE_H[0] <= mean_H <= BLUE_H[1]:
-                return "blue", mean_bgr, 0.5
+                return neg_name, mean_bgr, 0.5
 
         return "unknown", mean_bgr, 0.0
 
