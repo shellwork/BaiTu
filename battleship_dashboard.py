@@ -419,8 +419,16 @@ def _draw_96well_plate(
             Line2D([0], [0], marker='o', color='w', markerfacecolor='#f5f5f5',
                    markeredgecolor='#ccc', markersize=8, label='Not queried'),
         ]
-        ax.legend(handles=legend_elements, loc="upper left", bbox_to_anchor=(1.01, 1),
-                  fontsize=5, framealpha=0.9)
+        ax.legend(
+            handles=legend_elements,
+            loc="upper left",
+            bbox_to_anchor=(1.01, 1),
+            fontsize=5,
+            framealpha=0.9,
+            handlelength=2.5,  # make handles longer for clarity
+            borderpad=1.2,     # add more padding inside legend box
+            labelspacing=1.0   # add more vertical space between entries
+        )
     except Exception:
         pass  # Skip legend if there's any issue
 
