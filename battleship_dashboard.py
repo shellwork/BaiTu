@@ -895,16 +895,17 @@ def _render_simulation_tab(prefix: str = ""):
     summary_data = []
     for s in STRATEGIES:
         board = boards[s]
-        hits_list = st.session_state[f"{prefix}hits_per_round"][s]
-        current_hits = hits_list[-1] if hits_list else 0
+        unclear_list = st.session_state[f"{prefix}unclear_count_per_round"][s]
+        liquid_list = st.session_state[f"{prefix}liquid_remaining_per_round"][s]
+        current_unclear = unclear_list[-1] if unclear_list else 0
+        current_liquid = liquid_list[-1] / 1000 if liquid_list else 0  # convert µL to mL
         summary_data.append({
             "Strategy": LABELS[s],
             "Shots": board.n_queries,
-            "Hits": current_hits,
-            "Sunk": len(board.get_sunk_ships()),
+            "Unclear Readings": current_unclear,
+            "Liquid Left (mL)": f"{current_liquid:.2f}",
             "Done": "✅" if board.is_game_over() else "—",
         })
-    # Add key based on round number to help Streamlit track table updates
     st.table(summary_data)
 
     # --- Auto-play continuation (at end so visuals render first) ---
