@@ -96,6 +96,116 @@ def write_csv(board, filename, keep=None):
             writer.writerow([row_label] + row_data)
 
 
+FILL_VOLUME = 250  # uL per well
+
+API_LEVEL = "2.16"
+
+
+def _board_to_wells(board):
+    """Split board into NaOH well list and H2O well list.
+
+    Liquid mapping:
+      - 'x' cells (water on board) -> NaOH (slot 7)
+      - 'o' cells (ship on board)  -> H2O  (slot 8)
+    """
+    naoh_wells = []
+    h2o_wells = []
+    for r in range(ROWS):
+        for c in range(COLS):
+            well_name = f"{ROW_LABELS[r]}{c + 1}"
+            if board[r][c] == 'x':
+                naoh_wells.append(well_name)
+            elif board[r][c] == 'o':
+                h2o_wells.append(well_name)
+    return naoh_wells, h2o_wells
+
+
+def run_ot2(board):
+    """Connect directly to the OT-2 and build the plate from the board array."""
+    from opentrons import execute
+
+    naoh_wells, h2o_wells = _board_to_wells(board)
+
+    protocol = execute.get_protocol_api(API_LEVEL)
+    protocol.home()
+
+    # ── Labware ──────────────────────────────────────────────
+    plate    = protocol.load_labware("corning_96_wellplate_360ul_flat", 1)
+    tiprack  = protocol.load_labware("opentrons_96_filtertiprack_1000ul", 3)
+    naoh_res = protocol.load_labware("nest_12_reservoir_15ml", 7)
+    h2o_res  = protocol.load_labware("nest_12_reservoir_15ml", 8)
+
+    # ── Pipette ──────────────────────────────────────────────
+    pipette = protocol.load_instrument("p1000_single_gen2", "right",
+                                       tip_racks=[tiprack])
+
+    # ── Dispense NaOH (slot 7) into water wells ─────────────
+    print(f"Dispensing NaOH into {len(naoh_wells)} wells...")
+    pipette.pick_up_tip()
+    for well in naoh_wells:
+        pipette.aspirate(FILL_VOLUME, naoh_res["A1"])
+        pipette.dispense(FILL_VOLUME, plate[well])
+    pipette.drop_tip()
+
+    # ── Dispense H2O (slot 8) into ship wells ───────────────
+    print(f"Dispensing H2O into {len(h2o_wells)} wells...")
+    pipette.pick_up_tip()
+    for well in h2o_wells:
+        pipette.aspirate(FILL_VOLUME, h2o_res["A1"])
+        pipette.dispense(FILL_VOLUME, plate[well])
+    pipette.drop_tip()
+
+    protocol.home()
+    print("Plate build complete.")
+
+
+def write_ot2_protocol(board, filename):
+    """Write a standalone OT-2 protocol .py file from the board array."""
+    naoh_wells, h2o_wells = _board_to_wells(board)
+
+    protocol_text = f'''\
+from opentrons import protocol_api
+
+metadata = {{
+    "protocolName": "Battleship Plate Setup",
+    "author": "BaiTu",
+    "description": "Dispense NaOH into water wells and H2O into ship wells",
+}}
+requirements = {{"robotType": "OT-2", "apiLevel": "{API_LEVEL}"}}
+
+FILL_VOLUME = {FILL_VOLUME}  # uL per well
+
+NAOH_WELLS = {naoh_wells}
+H2O_WELLS  = {h2o_wells}
+
+
+def run(protocol: protocol_api.ProtocolContext):
+    plate    = protocol.load_labware("corning_96_wellplate_360ul_flat", 1)
+    tiprack  = protocol.load_labware("opentrons_96_filtertiprack_1000ul", 3)
+    naoh_res = protocol.load_labware("nest_12_reservoir_15ml", 7)
+    h2o_res  = protocol.load_labware("nest_12_reservoir_15ml", 8)
+
+    pipette = protocol.load_instrument("p1000_single_gen2", "right",
+                                       tip_racks=[tiprack])
+
+    pipette.pick_up_tip()
+    for well in NAOH_WELLS:
+        pipette.aspirate(FILL_VOLUME, naoh_res["A1"])
+        pipette.dispense(FILL_VOLUME, plate[well])
+    pipette.drop_tip()
+
+    pipette.pick_up_tip()
+    for well in H2O_WELLS:
+        pipette.aspirate(FILL_VOLUME, h2o_res["A1"])
+        pipette.dispense(FILL_VOLUME, plate[well])
+    pipette.drop_tip()
+'''
+
+    with open(filename, 'w', newline='') as f:
+        f.write(protocol_text)
+    print(f"Saved protocol: {filename}")
+
+
 def main():
     out_dir = sys.argv[1] if len(sys.argv) > 1 else "."
     board = make_board()
@@ -109,6 +219,11 @@ def main():
     write_csv(board, ships,  keep='o')
 
     print(f"Saved:\n  {combined}\n  {water}\n  {ships}\n")
+
+    # Comment out whichever you don't need:
+    run_ot2(board)                                          # direct OT-2 control
+    # write_ot2_protocol(board, f"{out_dir}/battleship_ot2_protocol.py")  # save protocol file
+
     header = "   " + "  ".join(str(c) for c in range(1, 11))
     print(header)
     for i, label in enumerate(ROW_LABELS):
