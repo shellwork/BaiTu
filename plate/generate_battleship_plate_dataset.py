@@ -27,8 +27,11 @@ from typing import List
 import cv2
 import numpy as np
 
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from battleship_env import BattleshipBoard
-from battleship_plate_simulation import (
+from plate.battleship_plate_simulation import (
     ACTIVE_COLS,
     board_grid_to_plate_labels,
     get_fixed_well_geometry,

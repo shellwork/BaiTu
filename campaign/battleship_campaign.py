@@ -28,10 +28,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from battleship_env import BattleshipBoard
 from battleship_matrix_oracle import BattleshipMatrixOracle, make_battleship_oracle
 from battleship_model import Game
-from battleship_plate_simulation import (
+from plate.battleship_plate_simulation import (
     ACTIVE_COLS,
     DEFAULT_RGB_L2_TOLERANCE,
 )

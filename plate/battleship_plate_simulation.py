@@ -23,7 +23,10 @@ from typing import Any, Dict, Optional, cast
 import cv2
 import numpy as np
 
-from battleship_plate_readout import (
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from plate.battleship_plate_readout import (
     ACTIVE_COLS,
     DEFAULT_RGB_L2_TOLERANCE,
     DEFAULT_RGB_PER_CHANNEL_DELTA,
@@ -42,7 +45,7 @@ from battleship_plate_readout import (
     sample_well_mean_bgr,
 )
 from battleship_env import BattleshipBoard
-from plate_simulator import PlateSimulator
+from plate.plate_simulator import PlateSimulator
 
 RESERVED_CONTROL_COLS = 2
 

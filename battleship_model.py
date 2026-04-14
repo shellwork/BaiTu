@@ -40,6 +40,8 @@ from typing import Dict, List, Optional, Set, Tuple
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
+from config import DEFAULT_SHIP_SIZES
+
 
 class BeliefModel:
     """
@@ -76,7 +78,7 @@ class BeliefModel:
             self.remaining_sizes: List[int] = []
         else:
             self._plate_mode = False
-            self.ship_sizes     = sorted(ship_sizes or [5, 4, 3, 3, 2], reverse=True)
+            self.ship_sizes     = sorted(ship_sizes or DEFAULT_SHIP_SIZES, reverse=True)
             self.remaining_sizes = list(self.ship_sizes)
 
         # Observations

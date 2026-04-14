@@ -29,9 +29,14 @@ from typing import Dict, List, Optional, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from battleship_model import BeliefModel          # ← shared model
-from plate_detector import PlateDetector
-from plate_simulator import PlateSimulator, clustered_plate_labels, random_plate_labels
+from config import STRATEGY_COLORS
+from utils.plotting import interpolate_curve
+from plate.plate_detector import PlateDetector
+from plate.plate_simulator import PlateSimulator, clustered_plate_labels, random_plate_labels
 
 
 # ── Strategy config ───────────────────────────────────────────────────────
@@ -43,12 +48,7 @@ LABELS_STR = {
     "prob":    "Max Probability (exploit)",
     "entropy": "Max Entropy (uncertainty)",
 }
-COLORS = {
-    "random":  "#e74c3c",
-    "grid":    "#9b59b6",
-    "prob":    "#2ecc71",
-    "entropy": "#3498db",
-}
+COLORS = {s: STRATEGY_COLORS[s] for s in STRATEGIES}
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -233,18 +233,7 @@ def run_plate_experiment(
 # Visualisation
 # ══════════════════════════════════════════════════════════════════════════
 
-def _interp_curve(history: List[Dict], key: str, max_steps: int) -> np.ndarray:
-    v = np.zeros(max_steps)
-    prev, ptr = 0.0, 0
-    for entry in history:
-        idx = entry["step"] - 1
-        while ptr <= idx and ptr < max_steps:
-            v[ptr] = prev; ptr += 1
-        if idx < max_steps:
-            v[idx] = entry[key]; prev = entry[key]
-    while ptr < max_steps:
-        v[ptr] = prev; ptr += 1
-    return v
+_interp_curve = interpolate_curve
 
 
 def plot_plate_comparison(results: Dict[str, List[Dict]], save_dir: str = "."):

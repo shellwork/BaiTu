@@ -36,9 +36,13 @@ import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
 
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from battleship_env import BattleshipBoard
 from battleship_model import Game
-from battleship_synthetic import (
+from config import DEFAULT_SHIP_SIZES, BOARD_ROWS, BOARD_COLS, PLATE_ROWS, PLATE_COLS, STRATEGY_COLORS
+from experiment.battleship_synthetic import (
     NoiseConfig,
     generate_single_well_reading,
 )
@@ -47,9 +51,6 @@ from battleship_synthetic import (
 # Constants
 # ------------------------------------------------------------------
 
-BOARD_ROWS, BOARD_COLS = 8, 10
-PLATE_ROWS, PLATE_COLS = 8, 12  # standard 96-well plate
-
 STRATEGIES = ["random", "prob", "entropy", "hunt_target"]
 LABELS = {
     "random":      "Random",
@@ -57,15 +58,9 @@ LABELS = {
     "entropy":     "Max Entropy",
     "hunt_target": "Hunt-Target",
 }
-COLORS = {
-    "random":      "#e74c3c",
-    "prob":        "#2ecc71",
-    "entropy":     "#9b59b6",
-    "hunt_target": "#f39c12",
-}
+COLORS = {s: STRATEGY_COLORS[s] for s in STRATEGIES}
 
-# Ship sizes (same as in battleship_env.py)
-SHIP_SIZES = [5, 4, 3, 3, 2]
+SHIP_SIZES = DEFAULT_SHIP_SIZES
 SHIP_NAMES = ["Carrier", "Battleship", "Cruiser", "Submarine", "Destroyer"]
 
 # Liquid parameters

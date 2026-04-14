@@ -14,14 +14,14 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 
 from battleship_env import BattleshipBoard, Ship
-from battleship_plate_readout import (
+from plate.battleship_plate_readout import (
     ACTIVE_COLS,
     SHIP_LIQUID_RGB,
     WATER_LIQUID_RGB,
     mean_bgr_to_mean_rgb,
     query_well_fixed_geometry_rgb,
 )
-from battleship_plate_simulation import get_fixed_well_geometry, simulate_photo_from_board
+from plate.battleship_plate_simulation import get_fixed_well_geometry, simulate_photo_from_board
 
 
 @dataclass

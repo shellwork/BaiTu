@@ -19,16 +19,21 @@ Modes
   experiment : run batch, save figures, print summary table
 """
 
+from __future__ import annotations
+
 import argparse
 import os
 import time
 
 import numpy as np
 
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from battleship_env import BattleshipBoard
 from battleship_matrix_oracle import make_battleship_oracle
 from battleship_model import Game
-from battleship_experiment import (
+from experiment.battleship_experiment import (
     LABELS,
     STRATEGIES,
     plot_comparison,

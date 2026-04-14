@@ -20,9 +20,14 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
 
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from battleship_env import BattleshipBoard
 from battleship_matrix_oracle import make_battleship_oracle
 from battleship_model import Game
+from config import STRATEGY_COLORS
+from utils.plotting import interpolate_curve
 
 # ------------------------------------------------------------------
 # Config
@@ -38,13 +43,7 @@ LABELS: Dict[str, str] = {
     "pro_solver": "Hunt/Target + Density (pro solver)",
 }
 
-COLORS: Dict[str, str] = {
-    "random":      "#e74c3c",
-    "prob":        "#2ecc71",
-    "entropy":     "#3498db",
-    "hunt_target": "#f39c12",
-    "pro_solver": "#9b59b6",
-}
+COLORS: Dict[str, str] = {s: STRATEGY_COLORS[s] for s in STRATEGIES}
 
 
 # ------------------------------------------------------------------
@@ -167,21 +166,7 @@ def run_experiment(
 # Visualisation helpers
 # ------------------------------------------------------------------
 
-def _interpolate_curve(history: List[Dict], key: str, max_steps: int) -> np.ndarray:
-    """Return a fixed-length array by forward-filling the episode history."""
-    values = np.full(max_steps, np.nan)
-    for entry in history:
-        idx = entry["step"] - 1
-        if idx < max_steps:
-            values[idx] = entry[key]
-    # Forward-fill (hold last value after game ends)
-    last = 0.0
-    for i in range(max_steps):
-        if np.isnan(values[i]):
-            values[i] = last
-        else:
-            last = values[i]
-    return values
+_interpolate_curve = interpolate_curve
 
 
 def plot_comparison(results: Dict[str, List[Dict]], save_dir: str = "."):

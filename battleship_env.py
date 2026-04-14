@@ -10,6 +10,8 @@ import random
 from dataclasses import dataclass, field
 from typing import List, Set, Tuple, Optional
 
+from config import DEFAULT_SHIP_SIZES
+
 
 @dataclass
 class Ship:
@@ -37,7 +39,7 @@ class BattleshipBoard:
         oracle cost = 1 query per cell
     """
 
-    DEFAULT_SHIPS = [5, 4, 3, 3, 2]   # Carrier, Battleship, Cruiser, Sub, Destroyer
+    DEFAULT_SHIPS = DEFAULT_SHIP_SIZES
 
     def __init__(
         self,

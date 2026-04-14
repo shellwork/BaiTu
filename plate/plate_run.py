@@ -19,7 +19,10 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-from plate_active_learning import (
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from plate.plate_active_learning import (
     LABELS_STR,
     STRATEGIES,
     plot_belief_evolution,
@@ -29,8 +32,8 @@ from plate_active_learning import (
     run_plate_episode,
     run_plate_experiment,
 )
-from plate_detector import PlateDetector
-from plate_simulator import PlateSimulator, clustered_plate_labels, random_plate_labels
+from plate.plate_detector import PlateDetector
+from plate.plate_simulator import PlateSimulator, clustered_plate_labels, random_plate_labels
 
 
 # ──────────────────────────────────────────────────────────────────────

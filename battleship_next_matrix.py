@@ -25,6 +25,7 @@ from typing import Literal, Optional, Set, Tuple
 import numpy as np
 
 from battleship_model import BeliefModel, Game
+from config import DEFAULT_SHIP_SIZES
 
 Mode = Literal["battleship", "plate"]
 
@@ -63,7 +64,7 @@ def _build_model_from_results(
         model = Game(
             board_rows=8,
             board_cols=12,
-            ship_sizes=ship_sizes if ship_sizes is not None else [5, 4, 3, 3, 2],
+            ship_sizes=ship_sizes if ship_sizes is not None else DEFAULT_SHIP_SIZES,
         )
 
     for r in range(8):
