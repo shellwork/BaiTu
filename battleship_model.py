@@ -335,6 +335,7 @@ class BeliefModel:
         self,
         strategy:   str = "prob",
         grid_order: Optional[List[Tuple[int, int]]] = None,
+        allowed_cells: Optional[Set[Tuple[int, int]]] = None,
     ) -> Optional[Tuple[int, int]]:
         """
         Acquisition function: select the next cell to query.
@@ -343,6 +344,7 @@ class BeliefModel:
         ----------
         strategy   : 'random' | 'prob' | 'entropy' | 'hunt_target' | 'pro_solver' | 'grid'
         grid_order : precomputed scan order for the 'grid' strategy
+        allowed_cells : if set, only these cells may be chosen (must still be unqueried)
 
         Returns
         -------
@@ -354,6 +356,8 @@ class BeliefModel:
             (r, c) for r in range(nr) for c in range(nc)
             if (r, c) not in queried
         ]
+        if allowed_cells is not None:
+            available = [(r, c) for r, c in available if (r, c) in allowed_cells]
 
         if not available:
             return None
