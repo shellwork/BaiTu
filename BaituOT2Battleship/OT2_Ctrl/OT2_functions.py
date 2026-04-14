@@ -1,14 +1,14 @@
 import requests
 import json
-from typing import Dict, Any
+from typing import Any, Dict, Optional
 
 # OT-2 connection settings
 HEADERS = {"Opentrons-Version": "3"}
 ROBOT_IP = "169.254.200.128"   # Change this if your robot IP changes
 
 # Global state for current run
-commands_url: str | None = None
-pipette_id: str | None = None
+commands_url: Optional[str] = None
+pipette_id: Optional[str] = None
 LABWARE_BY_SLOT: Dict[str, str] = {}
 
 
