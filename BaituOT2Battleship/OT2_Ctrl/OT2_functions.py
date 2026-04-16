@@ -117,7 +117,18 @@ def _post_command(command_dict, wait=True):
             pass
         r.raise_for_status()
 
-    return r.json()["data"]
+    data = r.json()["data"]
+
+    # Check command execution status
+    cmd_status = data.get("status", "unknown")
+    if cmd_status == "failed":
+        error_info = data.get("error", {})
+        error_type = error_info.get("errorType", "unknown")
+        error_detail = error_info.get("detail", "no detail")
+        print(f"\n[OT][COMMAND FAILED] {error_type}: {error_detail}")
+        raise RuntimeError(f"OT-2 command failed: {error_type} — {error_detail}")
+
+    return data
 
 
 def create_run():
