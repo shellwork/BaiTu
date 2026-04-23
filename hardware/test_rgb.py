@@ -1,25 +1,25 @@
 """
 Test RGB recognition on a plate image.
 
-Usage:
+Usage (run from repository root):
   # Use calibration.json (geometry + colour prototypes)
-  python test_rgb.py <image_path> --calibration calibration.json
-
-  # Use geometry.json with default colour prototypes
-  python test_rgb.py <image_path> --calibration geometry.json
+  python -m hardware.test_rgb <image_path> --calibration hardware/calibration.json
 
   # Capture a new photo and test immediately
-  python test_rgb.py capture --calibration calibration.json
+  python -m hardware.test_rgb capture --calibration hardware/calibration.json
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 
 import cv2
 import numpy as np
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from plate.battleship_plate_readout import (
     classify_ship_water_fixed_rgb_tolerance,

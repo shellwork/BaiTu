@@ -23,9 +23,9 @@ import numpy as np
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from battleship_env import BattleshipBoard
-from battleship_matrix_oracle import make_battleship_oracle
-from battleship_model import Game
+from core.battleship_env import BattleshipBoard
+from core.battleship_matrix_oracle import make_battleship_oracle
+from core.battleship_model import Game
 from config import STRATEGY_COLORS
 from utils.plotting import interpolate_curve
 

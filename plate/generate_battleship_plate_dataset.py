@@ -30,7 +30,7 @@ import numpy as np
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from battleship_env import BattleshipBoard
+from core.battleship_env import BattleshipBoard
 from plate.battleship_plate_simulation import (
     ACTIVE_COLS,
     board_grid_to_plate_labels,

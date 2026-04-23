@@ -4,13 +4,13 @@ Battleship Active Learning – Entry Point
 Usage
 -----
   # Interactive demo: watch one episode step by step
-  python battleship_run.py --mode demo --strategy prob --seed 42
+  python -m experiment.battleship_run --mode demo --strategy prob --seed 42
 
   # Single comparison episode (all strategies, same board)
-  python battleship_run.py --mode compare --seed 7
+  python -m experiment.battleship_run --mode compare --seed 7
 
   # Full experiment (n boards × 5 strategies)
-  python battleship_run.py --mode experiment --n_episodes 200
+  python -m experiment.battleship_run --mode experiment --n_episodes 200
 
 Modes
 -----
@@ -30,9 +30,9 @@ import numpy as np
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from battleship_env import BattleshipBoard
-from battleship_matrix_oracle import make_battleship_oracle
-from battleship_model import Game
+from core.battleship_env import BattleshipBoard
+from core.battleship_matrix_oracle import make_battleship_oracle
+from core.battleship_model import Game
 from experiment.battleship_experiment import (
     LABELS,
     STRATEGIES,

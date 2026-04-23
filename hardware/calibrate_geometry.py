@@ -1,14 +1,14 @@
 """
 Manual geometry + colour calibration tool.
 
-Usage:
+Usage (run from repository root):
   1. Take a photo:
-       python calibrate_geometry.py capture
+       python -m hardware.calibrate_geometry capture
 
   2. Calibrate geometry (click 4 corners) + colour (click hit/miss wells):
-       python calibrate_geometry.py annotate <image_path>
+       python -m hardware.calibrate_geometry annotate <image_path>
 
-  Output: calibration.json  (geometry + colour prototypes)
+  Output: hardware/calibration.json  (geometry + colour prototypes)
 """
 
 from __future__ import annotations
@@ -175,7 +175,7 @@ def cmd_capture():
     path = f"plate_photo_{ts}.jpg"
     cv2.imwrite(path, frame)
     print(f"Image saved: {path}  (shape: {frame.shape})")
-    print(f"Next step:   python calibrate_geometry.py annotate {path}")
+    print(f"Next step:   python -m hardware.calibrate_geometry annotate {path}")
 
 
 def cmd_annotate(image_path: str):
@@ -254,7 +254,8 @@ def cmd_annotate(image_path: str):
         "rgb_l2_tolerance": round(tolerance, 1),
     }
 
-    out_path = "calibration.json"
+    # Always write calibration.json next to this script (hardware/).
+    out_path = str(Path(__file__).parent / "calibration.json")
     with open(out_path, "w") as f:
         json.dump(calib, f, indent=2)
 
@@ -272,7 +273,7 @@ def cmd_annotate(image_path: str):
     print(f"  preview: {vis_path}")
 
     print(f"\nUsage:")
-    print(f"  python battleship_ot2_loop.py --geometry_path {out_path} --strategy prob --seed 42")
+    print(f"  python -m hardware.battleship_ot2_loop --geometry_path {out_path} --strategy prob --seed 42")
 
 
 if __name__ == "__main__":
@@ -285,7 +286,7 @@ if __name__ == "__main__":
         cmd_capture()
     elif cmd == "annotate":
         if len(sys.argv) < 3:
-            print("Usage: python calibrate_geometry.py annotate <image_path>")
+            print("Usage: python -m hardware.calibrate_geometry annotate <image_path>")
             sys.exit(1)
         cmd_annotate(sys.argv[2])
     else:

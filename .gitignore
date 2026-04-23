@@ -8,6 +8,17 @@ __pycache__/
 .env
 esm_model_cache
 checkpoints
+
+# Project result / artefact directories
+battleship_results/
+experiment/battleship_results/
+plate/plate_results/
+plate/simulated_battleship_plate_dataset/
+campaign/battleship_campaign_results/
+
+# Runtime camera captures (keep hardware/samples for reference)
+plate_photo_*.jpg
+test_rgb_*.jpg
 # Distribution / packaging
 .Python
 build/

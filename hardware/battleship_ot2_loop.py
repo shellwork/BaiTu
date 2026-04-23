@@ -8,14 +8,15 @@ Orchestrates a full active-learning Battleship game on the OT-2:
    colour → update model → repeat until all ships sunk.
 3. **Report** – save results, metrics, checkpoint.
 
-Usage
------
+Usage (run from repository root)
+--------------------------------
   # Dry-run (synthetic images, no hardware)
-  python battleship_ot2_loop.py --dry_run --strategy prob --seed 42
+  python -m hardware.battleship_ot2_loop --dry_run --strategy prob --seed 42
 
   # Real experiment
-  python battleship_ot2_loop.py --strategy prob --seed 42 --output_dir run1
-  python battleship_ot2_loop.py --strategy prob --seed 42 --robot_ip 169.254.200.128
+  python -m hardware.battleship_ot2_loop --strategy prob --seed 42 --output_dir run1
+  python -m hardware.battleship_ot2_loop --strategy prob --seed 42 \\
+      --robot_ip 169.254.200.128 --geometry_path hardware/calibration.json
 """
 
 from __future__ import annotations
@@ -34,9 +35,11 @@ from typing import Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from config import BOARD_COLS, BOARD_ROWS, DEFAULT_SHIP_SIZES, PLATE_COLS, PLATE_ROWS
-from battleship_env import BattleshipBoard, Ship
-from battleship_model import Game
+from core.battleship_env import BattleshipBoard, Ship
+from core.battleship_model import Game
 from plate.battleship_plate_readout import (
     classify_ship_water_from_mean_bgr,
     load_image_bgr,

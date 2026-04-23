@@ -1,8 +1,8 @@
 """
 Streamlit dashboard for the Battleship closed-loop campaign.
 
-Run:
-  streamlit run battleship_campaign_dashboard.py
+Run (from repository root):
+  streamlit run campaign/battleship_campaign_dashboard.py
 """
 
 from __future__ import annotations

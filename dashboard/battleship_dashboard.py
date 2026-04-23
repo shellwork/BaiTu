@@ -3,8 +3,8 @@ Battleship Lab Simulator – Streamlit Dashboard
 ================================================
 Simulates a Battleship game played on an Opentrons OT-2 liquid handler.
 
-Run:
-    streamlit run battleship_dashboard.py
+Run (from repository root):
+    streamlit run dashboard/battleship_dashboard.py
 
 Two tabs
 --------
@@ -39,8 +39,8 @@ import streamlit.components.v1 as components
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from battleship_env import BattleshipBoard
-from battleship_model import Game
+from core.battleship_env import BattleshipBoard
+from core.battleship_model import Game
 from config import DEFAULT_SHIP_SIZES, BOARD_ROWS, BOARD_COLS, PLATE_ROWS, PLATE_COLS, STRATEGY_COLORS
 from experiment.battleship_synthetic import (
     NoiseConfig,

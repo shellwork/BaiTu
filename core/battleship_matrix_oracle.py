@@ -13,7 +13,7 @@ from typing import Dict, Optional, Tuple
 
 import numpy as np
 
-from battleship_env import BattleshipBoard, Ship
+from core.battleship_env import BattleshipBoard, Ship
 from plate.battleship_plate_readout import (
     ACTIVE_COLS,
     SHIP_LIQUID_RGB,

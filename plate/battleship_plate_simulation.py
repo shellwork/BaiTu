@@ -44,7 +44,7 @@ from plate.battleship_plate_readout import (
     sample_all_wells_mean_bgr,
     sample_well_mean_bgr,
 )
-from battleship_env import BattleshipBoard
+from core.battleship_env import BattleshipBoard
 from plate.plate_simulator import PlateSimulator
 
 RESERVED_CONTROL_COLS = 2

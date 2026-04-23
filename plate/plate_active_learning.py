@@ -32,7 +32,7 @@ import numpy as np
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from battleship_model import BeliefModel          # ← shared model
+from core.battleship_model import BeliefModel          # ← shared model
 from config import STRATEGY_COLORS
 from utils.plotting import interpolate_curve
 from plate.plate_detector import PlateDetector

@@ -12,7 +12,7 @@ campaign that:
 
 Usage
 -----
-  python battleship_campaign.py --max_cycles 5 --query_size 8
+  python -m campaign.battleship_campaign --max_cycles 5 --query_size 8
 """
 
 from __future__ import annotations
@@ -31,9 +31,9 @@ import numpy as np
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from battleship_env import BattleshipBoard
-from battleship_matrix_oracle import BattleshipMatrixOracle, make_battleship_oracle
-from battleship_model import Game
+from core.battleship_env import BattleshipBoard
+from core.battleship_matrix_oracle import BattleshipMatrixOracle, make_battleship_oracle
+from core.battleship_model import Game
 from plate.battleship_plate_simulation import (
     ACTIVE_COLS,
     DEFAULT_RGB_L2_TOLERANCE,

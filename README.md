@@ -1,58 +1,252 @@
-# Battleship Lab Simulator
+# BaiTu — Battleship Active Learning on an OT-2 Liquid Handler
 
-This project simulates a Battleship game as played on an Opentrons OT-2 liquid handler, combining robotics, computer vision, and active learning for experimental design and quality control.
+BaiTu treats a Battleship game as a proxy for an automated wet-lab experiment.
+The Opentrons OT-2 dispenses NaOH into "ship" wells and water into "miss"
+wells on a 96-well plate. Each round, cabbage-juice indicator is added to a
+queried well — the well turns purple (hit, NaOH) or blue (miss, water). A
+computer-vision readout feeds the result back into a Bayesian belief model,
+which picks the next well to probe. The goal is to sink every ship in as few
+queries as possible under realistic CV noise, liquid budgets, and quality
+control constraints.
 
-## Overview
+The same belief model, oracle, and plate simulator drive four parallel
+deliverables:
 
-- **Setup:** The OT-2 robot dispenses NaOH into ship positions and water into empty positions on a virtual 96-well plate.
-- **Play:** In each round, cabbage juice is dispensed into a selected well. The well turns purple if it contains NaOH (ship) and blue if it contains water (miss).
-- **Analysis:** A computer vision algorithm analyzes the plate and returns a value from 0 (hit) to 1 (miss) for each well.
-- **Learning:** An active learning algorithm selects the next well to query. Four strategies are available: max entropy, max probability, hunt-target heuristic, and random.
+1. **Hardware loop** — closed-loop run on a real OT-2 robot with a camera.
+2. **Synthetic experiment suite** — batch comparison of acquisition strategies
+   on an in-memory board.
+3. **Plate-level active learning** — image-based experiments on a simulated
+   96-well plate with a CV detector.
+4. **Campaign** — outer-loop policy search that fits a surrogate over
+   strategies and tracks stopping criteria.
+5. **Interactive dashboard** — Streamlit UI that visualises the game and
+   handles unclear CV readings with a human-in-the-loop.
 
-## Features
+---
 
-- Visual dashboard for monitoring the game, liquid usage, and quality control metrics.
-- Four query selection strategies, each tracked independently.
-- Human-in-the-loop verification for unclear readings in the hunt-target strategy.
-- Tracks variance of readings, unclear readings, and remaining liquid.
+## What's implemented
 
-## How to Run
+### Core library (`core/`)
 
-1. **Install dependencies**
+- `battleship_env.py` — ground-truth Battleship board, ship placement, oracle
+  queries.
+- `battleship_model.py` — unified Bayesian belief model with two modes:
+  - **Ship mode** — posterior over fleet placements.
+  - **Plate mode** — per-cell Beta posteriors with Gaussian spatial spreading.
+  - Shared acquisition API: `random`, `prob`, `entropy`, `hunt_target`,
+    `pro_solver`, `grid`.
+- `battleship_matrix_oracle.py` — adapter that normalises both board queries
+  and plate-image readouts into the same active-area matrix.
 
-    Create and activate a conda environment (recommended):
-     ```sh
-     conda create -n bioinfo python=3.11
-     conda activate bioinfo
-     pip install -r requirements.txt
-     ```
+### Plate simulation & computer vision (`plate/`)
 
-2. **Start the dashboard**
-    
-    Run the Streamlit dashboard:
-     ```sh
-     streamlit run battleship_dashboard.py
-     ```
-   The dashboard will open in your browser. If not, visit [http://localhost:8501](http://localhost:8501).
+- `plate_simulator.py` — generic 96-well plate photo simulator (meniscus,
+  reflections, illumination gradient, plastic background).
+- `battleship_plate_simulation.py` — embeds an 8×10 Battleship board into the
+  full 8×12 plate (two reserved control columns) and renders a photo.
+- `battleship_plate_readout.py` — fixed-ROI RGB sampling and colour
+  classification (ship / water / unknown) against prototype colours.
+- `plate_detector.py` — end-to-end CV pipeline that converts a plate image
+  into an 8×12 label matrix. Grid-based and Hough-circle modes, HSV
+  thresholds.
+- `plate_analysis.py` — Hough-circle utilities.
+- `plate_active_learning.py` — plate-mode active-learning runner
+  (`random`, `grid`, `prob`, `entropy`).
+- `plate_run.py` — CLI entry point: demo, full experiment, or CV accuracy
+  check.
+- `generate_battleship_plate_dataset.py` — generates synthetic
+  image+label datasets for training / validation.
 
-3. **How to Play**
-- Use the strategy buttons to view and control each query strategy.
-- Click **Next Shot** or **Play 5 Shots** to advance, or **Play All** to run to completion.
-- For the **Hunt-Target** strategy, you may be prompted to verify unclear readings.
-- Monitor liquid usage, QC metrics, and progress for each strategy.
-- Start a new game anytime with the **New Board** button.
+### OT-2 hardware loop (`hardware/`)
 
-## File Structure
+- `battleship_ot2_loop.py` — production closed-loop driver. Setup phase
+  dispenses NaOH / H₂O to the whole plate, then runs a query loop:
+  model picks a well → robot dispenses indicator → camera captures →
+  `battleship_plate_readout` classifies → model updates. Handles dry runs,
+  resets, calibration, skip-setup, and checkpointing.
+- `calibrate_geometry.py` — interactive OpenCV tool. Click the four corner
+  wells for geometry, then sample hit / miss prototype colours. Writes
+  `hardware/calibration.json`.
+- `test_rgb.py` — sanity check for RGB colour recognition on a saved or
+  freshly captured plate photo.
+- `calibration.json` — current geometry + RGB prototypes for the rig.
+- `samples/` — two reference plate photos used in the docs.
 
-- `battleship_dashboard.py` — Main Streamlit dashboard
-- `battleship_env.py`, `battleship_model.py`, `battleship_synthetic.py` — Core logic and simulation
-- `requirements.txt` — Python dependencies
-- `battleship_results/` — Saved simulation results
+### Synthetic experiments (`experiment/`)
 
-## Requirements
-- Python 3.11+
-- Streamlit
-- numpy, matplotlib, etc. (see requirements.txt)
+- `battleship_experiment.py` — episode runner, learning / entropy curves,
+  comparison plots.
+- `battleship_run.py` — CLI entry point with three modes: `demo`, `compare`,
+  `experiment`.
+- `battleship_synthetic.py` — Gaussian-noise model for CV readouts used by
+  the dashboard and batch experiments.
+
+### Campaign / policy search (`campaign/`)
+
+- `battleship_campaign.py` — proposes acquisition policies each cycle, runs
+  them against the simulator, fits an ensemble surrogate, and tracks
+  learning / QC / stopping metrics.
+- `battleship_campaign_dashboard.py` — Streamlit view over the saved
+  campaign history.
+
+### Interactive dashboard (`dashboard/`)
+
+- `battleship_dashboard.py` — Streamlit app with two tabs:
+  - **Simulation** — runs all four strategies in the background and shows a
+    hits-vs-round chart plus the live hunt-target plate.
+  - **Handle Logical Failures** — pauses on unclear readings (score in
+    0.4 – 0.6) and waits for the user to confirm hit / miss.
+
+### Shared
+
+- `config.py` — global constants (board / plate geometry, ship sizes,
+  strategy colours). Deliberately light so every module can import it.
+- `utils/plotting.py` — learning-curve interpolation helpers.
+
+---
+
+## Directory layout
+
+```text
+BaiTu/
+├── README.md
+├── requirements.txt
+├── config.py                         # shared constants
+│
+├── core/                             # game engine + belief model
+│   ├── battleship_env.py
+│   ├── battleship_model.py
+│   └── battleship_matrix_oracle.py
+│
+├── plate/                            # 96-well plate simulation & CV
+│   ├── plate_simulator.py
+│   ├── battleship_plate_simulation.py
+│   ├── battleship_plate_readout.py
+│   ├── plate_detector.py
+│   ├── plate_analysis.py
+│   ├── plate_active_learning.py
+│   ├── plate_run.py                  # entry point
+│   └── generate_battleship_plate_dataset.py
+│
+├── hardware/                         # OT-2 closed-loop & calibration
+│   ├── battleship_ot2_loop.py        # entry point
+│   ├── calibrate_geometry.py         # entry point
+│   ├── test_rgb.py                   # entry point
+│   ├── calibration.json
+│   └── samples/                      # reference plate photos
+│
+├── experiment/                       # synthetic comparison runs
+│   ├── battleship_experiment.py
+│   ├── battleship_run.py             # entry point
+│   └── battleship_synthetic.py
+│
+├── campaign/                         # policy search + surrogate
+│   ├── battleship_campaign.py        # entry point
+│   └── battleship_campaign_dashboard.py   # Streamlit
+│
+├── dashboard/                        # Streamlit demo
+│   └── battleship_dashboard.py
+│
+├── utils/
+│   └── plotting.py
+│
+└── archive/                          # legacy / superseded — not imported
+```
+
+Runtime output directories (`battleship_results/`,
+`experiment/battleship_results/`, `plate/plate_results/`,
+`plate/simulated_battleship_plate_dataset/`,
+`campaign/battleship_campaign_results/`, `checkpoints/`) are gitignored.
+
+---
+
+## Installation
+
+```sh
+conda create -n baitu python=3.11
+conda activate baitu
+pip install -r requirements.txt
+```
+
+---
+
+## Running each pipeline
+
+All commands below are executed from the repository root.
+
+### Streamlit dashboard
+
+```sh
+streamlit run dashboard/battleship_dashboard.py
+```
+
+Opens on <http://localhost:8501>.
+
+### Synthetic experiment suite
+
+```sh
+# Watch one episode step-by-step
+python -m experiment.battleship_run --mode demo --strategy prob --seed 42
+
+# Compare all strategies on the same board
+python -m experiment.battleship_run --mode compare --seed 7
+
+# Full batch (n boards × 5 strategies)
+python -m experiment.battleship_run --mode experiment --n_episodes 200
+```
+
+### Plate active learning
+
+```sh
+# Demo one plate image + CV detection
+python -m plate.plate_run --mode demo --seed 42
+
+# Full experiment
+python -m plate.plate_run --mode experiment --n_episodes 100
+
+# Evaluate CV detector accuracy
+python -m plate.plate_run --mode cv_test --n_plates 30
+
+# Generate a synthetic image dataset
+python -m plate.generate_battleship_plate_dataset \
+    --output_dir plate/simulated_battleship_plate_dataset
+```
+
+### OT-2 hardware loop
+
+```sh
+# One-off calibration (click 4 corners + 2 sample wells per colour)
+python -m hardware.calibrate_geometry capture
+python -m hardware.calibrate_geometry annotate plate_photo_<timestamp>.jpg
+# → writes hardware/calibration.json
+
+# Sanity-check RGB recognition on a saved photo
+python -m hardware.test_rgb <image_path> --calibration hardware/calibration.json
+
+# Dry run (synthetic images, no hardware required)
+python -m hardware.battleship_ot2_loop --dry_run --strategy prob --seed 42
+
+# Real experiment
+python -m hardware.battleship_ot2_loop --strategy prob --seed 42 \
+    --robot_ip 169.254.200.128 --geometry_path hardware/calibration.json
+
+# Skip board-setup if the plate is already prepared
+python -m hardware.battleship_ot2_loop --strategy prob --seed 42 \
+    --robot_ip 169.254.200.128 --geometry_path hardware/calibration.json --skip_setup
+
+# Reset (robot returns tips, empties wells)
+python -m hardware.battleship_ot2_loop reset --robot_ip 169.254.200.128
+```
+
+### Policy-search campaign
+
+```sh
+python -m campaign.battleship_campaign --max_cycles 5 --query_size 8
+streamlit run campaign/battleship_campaign_dashboard.py
+```
+
+---
 
 ## License
-MIT License
+
+MIT

@@ -4,13 +4,13 @@ Plate Active Learning – Entry Point
 Usage
 -----
   # Show simulated plate image + CV detection result
-  python plate_run.py --mode demo --seed 42
+  python -m plate.plate_run --mode demo --seed 42
 
   # Run full experiment and save all figures
-  python plate_run.py --mode experiment --n_episodes 100
+  python -m plate.plate_run --mode experiment --n_episodes 100
 
   # Quick accuracy check of the CV detector
-  python plate_run.py --mode cv_test --n_plates 30
+  python -m plate.plate_run --mode cv_test --n_plates 30
 """
 
 import argparse
