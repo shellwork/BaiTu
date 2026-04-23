@@ -63,7 +63,10 @@ deliverables:
   dispenses NaOH / H₂O to the whole plate, then runs a query loop:
   model picks a well → robot dispenses indicator → camera captures →
   `battleship_plate_readout` classifies → model updates. Handles dry runs,
-  resets, calibration, skip-setup, and checkpointing.
+  resets, calibration, skip-setup, and checkpointing. The canonical deck
+  layout (pipette, slot assignments, labware, source wells, per-well
+  volumes) lives in `DEFAULT_DECK` at the top of this file — see
+  [Deck layout](#deck-layout) below.
 - `calibrate_geometry.py` — interactive OpenCV tool. Click the four corner
   wells for geometry, then sample hit / miss prototype colours. Writes
   `hardware/calibration.json`.
@@ -91,11 +94,23 @@ deliverables:
 
 ### Interactive dashboard (`dashboard/`)
 
-- `battleship_dashboard.py` — Streamlit app with two tabs:
-  - **Simulation** — runs all four strategies in the background and shows a
-    hits-vs-round chart plus the live hunt-target plate.
-  - **Handle Logical Failures** — pauses on unclear readings (score in
-    0.4 – 0.6) and waits for the user to confirm hit / miss.
+- `battleship_dashboard.py` — multi-page Streamlit app (`st.navigation`):
+  - **Home** — project overview and links to the other pages.
+  - **Simulator** — runs all four strategies in the browser, shows a
+    hits-vs-round chart plus the live hunt-target plate, and pauses on
+    unclear readings (score in 0.4 – 0.6) for a human hit / miss call.
+  - **OT-2 Hardware** — configure, launch, pause, resume, stop, and
+    reset the real `hardware.battleship_ot2_loop`. Live view of the plate
+    state, belief map, latest saved camera frame, an optional **~1 Hz
+    live webcam preview** for sanity-checking the rig, last step, step
+    history, and log stream. Dry-run mode rehearses the pipeline without
+    any robot.
+- `ot2_controller.py` — subprocess-based controller. The hardware loop
+  runs as its own OS process so **Stop** sends `SIGTERM` (identical to a
+  manual Ctrl-C), **Pause / Resume** use `SIGSTOP / SIGCONT`, and **Reset
+  robot** shells out to `python -m hardware.battleship_ot2_loop reset
+  --robot_ip …`. State is reconstructed from `checkpoint.json` that the
+  loop writes after every step.
 
 ### Shared
 
@@ -172,7 +187,7 @@ pip install -r requirements.txt
 
 ## Running each pipeline
 
-All commands below are executed from the repository root.
+All commands below are executed from the repository root. Most of commands can be run on the Streamlit Dashboard.
 
 ### Streamlit dashboard
 
@@ -243,6 +258,79 @@ python -m hardware.battleship_ot2_loop reset --robot_ip 169.254.200.128
 ```sh
 python -m campaign.battleship_campaign --max_cycles 5 --query_size 8
 streamlit run campaign/battleship_campaign_dashboard.py
+```
+
+---
+
+## Deck layout
+
+The OT-2 physical deck (pipette, slot assignments, labware names, reservoir
+source wells, per-well volumes) is defined by a single dict named
+`DEFAULT_DECK` at the top of
+[`hardware/battleship_ot2_loop.py`](hardware/battleship_ot2_loop.py). Current
+defaults:
+
+| Slot | Purpose            | Labware                           | Source well |
+| ---- | ------------------ | --------------------------------- | ----------- |
+| 1    | 96-well plate      | `corning_96_wellplate_360ul_flat` | —           |
+| 2    | Tiprack            | `opentrons_96_tiprack_1000ul`     | —           |
+| 4    | NaOH reservoir     | `nest_12_reservoir_15ml`          | A1          |
+| 5    | H₂O reservoir      | `nest_12_reservoir_15ml`          | A1          |
+| 6    | Indicator reservoir| `nest_12_reservoir_15ml`          | A1          |
+
+Pipette: `p1000_single` on the **right** mount. Fill volume: 100 µL.
+Indicator volume: 100 µL.
+
+### Viewing the live deck
+
+The **OT-2 Hardware** page of the Streamlit dashboard renders the deck at
+the top of the page as a 4 × 3 OT-2 slot grid (slots 10 / 11 / trash on the
+top row, slots 1 / 2 / 3 on the bottom). Each populated slot shows its role
+(Plate / Tiprack / NaOH / H₂O / Indicator), the labware identifier, and the
+reservoir source well. A caption above the grid reports the pipette, mount,
+and the per-well fill / indicator volumes. When any field has been
+overridden for the current session the caption shows *(overrides active)*.
+
+### Changing the deck
+
+You have two options, depending on how permanent the change should be:
+
+1. **Temporary override (single run) via the dashboard.**
+   On the OT-2 Hardware page, open **Edit deck layout (applied to the next
+   run)**, update the fields, and click **Apply deck changes**. The form
+   validates that no two roles share a slot. On the next **Start**, the
+   merged deck is written to `<output_dir>/deck.json` and the subprocess
+   launches with `--deck_path <output_dir>/deck.json`. A **Reset to
+   defaults** button clears all overrides.
+
+2. **Permanent change (new default).**
+   Edit `DEFAULT_DECK` in
+   [`hardware/battleship_ot2_loop.py`](hardware/battleship_ot2_loop.py)
+   directly. Everything (CLI, subprocess, dashboard) reads from this dict,
+   so a single source edit propagates everywhere.
+
+### Running the CLI with a custom deck
+
+You can also bypass the dashboard and pass a deck JSON to the CLI:
+
+```sh
+# deck.json may contain any subset of the DEFAULT_DECK keys — missing keys
+# fall back to defaults.
+python -m hardware.battleship_ot2_loop \
+    --strategy prob --seed 42 \
+    --robot_ip 169.254.200.128 \
+    --geometry_path hardware/calibration.json \
+    --deck_path path/to/deck.json
+```
+
+Example `deck.json` (moves the indicator reservoir to slot 9 and raises the
+indicator volume):
+
+```json
+{
+  "indicator_slot": "9",
+  "indicator_volume": 150.0
+}
 ```
 
 ---

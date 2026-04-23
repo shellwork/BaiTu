@@ -3,7 +3,7 @@ python battleship_ot2_loop.py calibrate
 
 python battleship_ot2_loop.py --strategy prob --seed 42 --robot_ip 169.254.200.128
 
-python battleship_ot2_loop.py reset --robot_ip 169.254.200.128
+python hardware/battleship_ot2_loop.py reset --robot_ip 169.254.200.128
 
 python battleship_ot2_loop.py --strategy prob --seed 42 --robot_ip 169.254.200.128 --geometry_path calibration.json
 

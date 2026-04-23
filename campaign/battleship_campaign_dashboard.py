@@ -162,7 +162,7 @@ def main() -> None:
                 bp_df = pd.DataFrame(
                     [{"Component": k, "Weight": round(v, 4)} for k, v in best_policy.items()]
                 )
-                st.dataframe(bp_df, use_container_width=False, hide_index=True)
+                st.dataframe(bp_df, width="content", hide_index=True)
 
         st.subheader("Per-cycle summary table")
         summary_df = pd.DataFrame([
@@ -178,7 +178,7 @@ def main() -> None:
             }
             for h in history
         ])
-        st.dataframe(summary_df, use_container_width=False, hide_index=True)
+        st.dataframe(summary_df, width="content", hide_index=True)
 
     # ── Learning tab ─────────────────────────────────────────────────────────
     with tab_learning:
@@ -245,7 +245,7 @@ make a policy attractive, balancing exploitation and exploration.
             }
             for h in history
         ])
-        st.dataframe(stop_df, use_container_width=False, hide_index=True)
+        st.dataframe(stop_df, width="content", hide_index=True)
 
         plan_path = results_dir / "qc_stopping_criteria_plan.md"
         if plan_path.exists():
@@ -277,7 +277,7 @@ make a policy attractive, balancing exploitation and exploration.
             }
             for h in history
         ])
-        st.dataframe(qc_df, use_container_width=False, hide_index=True)
+        st.dataframe(qc_df, width="content", hide_index=True)
 
         with st.expander("QC metric definitions & acceptable ranges"):
             st.markdown(f"""
@@ -359,7 +359,7 @@ make a policy attractive, balancing exploitation and exploration.
 
             cmp_df = pd.DataFrame(rows)
             st.subheader("Numeric comparison")
-            st.dataframe(cmp_df, use_container_width=False, hide_index=True)
+            st.dataframe(cmp_df, width="content", hide_index=True)
 
             # ── Per-seed query distribution ───────────────────────────────────
             with st.expander("Per-seed query distribution (all strategies)", expanded=False):
@@ -382,7 +382,7 @@ make a policy attractive, balancing exploitation and exploration.
                     })
                 if dist_rows:
                     dist_df = pd.DataFrame(dist_rows)
-                    st.dataframe(dist_df, use_container_width=False, hide_index=True)
+                    st.dataframe(dist_df, width="content", hide_index=True)
 
                     # aggregate stats grouped by strategy
                     agg = (
@@ -393,7 +393,7 @@ make a policy attractive, balancing exploitation and exploration.
                     )
                     agg.columns = ["Strategy", "Mean", "Std", "Min", "Max", "N"]
                     st.caption("Aggregated statistics")
-                    st.dataframe(agg, use_container_width=False, hide_index=True)
+                    st.dataframe(agg, width="content", hide_index=True)
 
         elif not (results_dir / "baselines.json").exists():
             st.info("No `baselines.json` found. Re-run `python battleship_campaign.py` to generate full comparison data.")
@@ -427,7 +427,7 @@ not be meaningful.
         st.subheader("Raw policy observations")
         if observations:
             obs_df = pd.DataFrame(observations)
-            st.dataframe(obs_df, use_container_width=False, hide_index=True)
+            st.dataframe(obs_df, width="content", hide_index=True)
         else:
             st.info("No observations found.")
 

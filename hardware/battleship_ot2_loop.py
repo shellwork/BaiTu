@@ -53,39 +53,44 @@ log = logging.getLogger(__name__)
 # Configuration
 # ═══════════════════════════════════════════════════════════════════════
 
-# ── Fixed deck layout ────────────────────────────────────────────────
-# Pipette
-PIPETTE_NAME = "p1000_single"
-PIPETTE_MOUNT = "right"
-# Slot 1: 96-well plate (target)
-PLATE_SLOT = "1"
-PLATE_LABWARE = "corning_96_wellplate_360ul_flat"
-# Slot 2: tiprack (must match pipette — p1000 requires 1000µL tips)
-TIPRACK_SLOT = "2"
-TIPRACK_LABWARE = "opentrons_96_tiprack_1000ul"
-# Slot 4: NaOH reservoir
-NAOH_SLOT = "4"
-NAOH_LABWARE = "nest_12_reservoir_15ml"
-NAOH_SOURCE_WELL = "A1"
-# Slot 5: H₂O reservoir
-H2O_SLOT = "5"
-H2O_LABWARE = "nest_12_reservoir_15ml"
-H2O_SOURCE_WELL = "A1"
-# Slot 6: indicator (cabbage juice) reservoir
-INDICATOR_SLOT = "6"
-INDICATOR_LABWARE = "nest_12_reservoir_15ml"
-INDICATOR_SOURCE_WELL = "A1"
+# ── Default deck layout ──────────────────────────────────────────────
+# The canonical deck configuration. Every field can be overridden at run
+# time via ``LoopConfig.deck_overrides`` (from the dashboard) or via a
+# JSON file passed through ``--deck_path``. Keep this dict as the single
+# source of truth; don't re-introduce parallel module constants.
+DEFAULT_DECK: Dict[str, object] = {
+    # Pipette
+    "pipette_name":  "p1000_single",
+    "pipette_mount": "right",
+    # Slot 1 — target 96-well plate
+    "plate_slot":    "1",
+    "plate_labware": "corning_96_wellplate_360ul_flat",
+    # Slot 2 — tiprack (must match the pipette)
+    "tiprack_slot":    "2",
+    "tiprack_labware": "opentrons_96_tiprack_1000ul",
+    # Slot 4 — NaOH reservoir (dispensed into empty cells)
+    "naoh_slot":        "4",
+    "naoh_labware":     "nest_12_reservoir_15ml",
+    "naoh_source_well": "A1",
+    # Slot 5 — H₂O reservoir (dispensed into ship cells)
+    "h2o_slot":        "5",
+    "h2o_labware":     "nest_12_reservoir_15ml",
+    "h2o_source_well": "A1",
+    # Slot 6 — indicator (cabbage juice) reservoir
+    "indicator_slot":        "6",
+    "indicator_labware":     "nest_12_reservoir_15ml",
+    "indicator_source_well": "A1",
+    # Volumes (µL)
+    "fill_volume":      100.0,   # NaOH / H₂O per well, Phase 1
+    "indicator_volume": 100.0,   # indicator per well,  Phase 2
+}
 
-# Fixed volumes (µL)
-FILL_VOLUME = 100.0       # NaOH / H₂O per well (Phase 1: board setup)
-INDICATOR_VOLUME = 100.0   # indicator per well   (Phase 2: game loop)
-
-# Z-offsets for liquid handling (mm)
+# Z-offsets for liquid handling (mm) — not normally user-editable.
 ASPIRATE_OFFSET = (0, 0, 1)    # aspirate: bottom + 1mm (closer to reservoir bottom)
 DISPENSE_OFFSET = (0, 0, -1)   # dispense: top − 1mm   (just inside the well)
 
-# Batch aspirate: 1000µL tip ÷ 100µL/well = 10 wells per aspirate
-MAX_WELLS_PER_ASPIRATE = int(1000 // FILL_VOLUME)  # = 10
+# Pipette tip capacity in µL — used to derive how many wells each aspirate covers.
+TIP_CAPACITY_UL = 1000.0
 
 
 @dataclass
@@ -112,6 +117,11 @@ class LoopConfig:
     # Error handling
     max_camera_retries: int = 3
     camera_retry_delay: float = 2.0
+
+    # Deck layout: loaded from --deck_path JSON first, then merged with
+    # deck_overrides. Final effective deck lives on OT2BattleshipLoop.deck.
+    deck_path: Optional[str] = None
+    deck_overrides: Dict[str, object] = field(default_factory=dict)
 
 
 @dataclass
@@ -159,6 +169,21 @@ class OT2BattleshipLoop:
         self.model: Optional[Game] = None
         self.geometry: Optional[Dict] = None
 
+        # Effective deck: defaults ← file ← overrides. Store on the instance
+        # so every method reads from a single resolved dict.
+        self.deck: Dict[str, object] = dict(DEFAULT_DECK)
+        if config.deck_path:
+            try:
+                with open(config.deck_path) as f:
+                    self.deck.update(json.load(f))
+            except (OSError, json.JSONDecodeError) as exc:
+                log.warning("Could not read deck_path=%s: %s", config.deck_path, exc)
+        if config.deck_overrides:
+            self.deck.update(config.deck_overrides)
+
+        fill_vol = float(self.deck["fill_volume"])
+        self._max_wells_per_aspirate = max(1, int(TIP_CAPACITY_UL // fill_vol))
+
         self.results_matrix = np.full((PLATE_ROWS, PLATE_COLS), -1, dtype=int)
         self.history: List[StepRecord] = []
         self._tip_index = 0
@@ -191,26 +216,27 @@ class OT2BattleshipLoop:
             log.info("[DRY RUN] Skipping OT-2 setup")
             return
 
-        from BaituOT2Battleship.OT2_Ctrl import OT2_functions as ot
+        from hardware.ot2_ctrl import OT2_functions as ot
 
         ot.ROBOT_IP = self.cfg.robot_ip
         _run_id, _ = ot.create_run()
         log.info("OT-2 run created: %s", _run_id)
 
-        ot.load_equipment(0, PIPETTE_NAME)
-        self._tiprack_id = ot.load_equipment(1, TIPRACK_LABWARE, TIPRACK_SLOT)
-        self._plate_id = ot.load_equipment(1, PLATE_LABWARE, PLATE_SLOT)
-        self._naoh_id = ot.load_equipment(1, NAOH_LABWARE, NAOH_SLOT)
-        self._h2o_id = ot.load_equipment(1, H2O_LABWARE, H2O_SLOT)
-        self._indicator_id = ot.load_equipment(1, INDICATOR_LABWARE, INDICATOR_SLOT)
+        d = self.deck
+        ot.load_equipment(0, d["pipette_name"])
+        self._tiprack_id = ot.load_equipment(1, d["tiprack_labware"], d["tiprack_slot"])
+        self._plate_id = ot.load_equipment(1, d["plate_labware"], d["plate_slot"])
+        self._naoh_id = ot.load_equipment(1, d["naoh_labware"], d["naoh_slot"])
+        self._h2o_id = ot.load_equipment(1, d["h2o_labware"], d["h2o_slot"])
+        self._indicator_id = ot.load_equipment(1, d["indicator_labware"], d["indicator_slot"])
 
         log.info("Deck layout loaded:")
-        log.info("  Slot %s: %s (tiprack)", TIPRACK_SLOT, TIPRACK_LABWARE)
-        log.info("  Slot %s: %s (plate)", PLATE_SLOT, PLATE_LABWARE)
-        log.info("  Slot %s: %s (NaOH)", NAOH_SLOT, NAOH_LABWARE)
-        log.info("  Slot %s: %s (H2O)", H2O_SLOT, H2O_LABWARE)
-        log.info("  Slot %s: %s (indicator)", INDICATOR_SLOT, INDICATOR_LABWARE)
-        log.info("  Pipette: %s (%s mount)", PIPETTE_NAME, PIPETTE_MOUNT)
+        log.info("  Slot %s: %s (tiprack)", d["tiprack_slot"], d["tiprack_labware"])
+        log.info("  Slot %s: %s (plate)", d["plate_slot"], d["plate_labware"])
+        log.info("  Slot %s: %s (NaOH)", d["naoh_slot"], d["naoh_labware"])
+        log.info("  Slot %s: %s (H2O)", d["h2o_slot"], d["h2o_labware"])
+        log.info("  Slot %s: %s (indicator)", d["indicator_slot"], d["indicator_labware"])
+        log.info("  Pipette: %s (%s mount)", d["pipette_name"], d["pipette_mount"])
 
     def _setup_board(self) -> BattleshipBoard:
         """Generate board and dispense NaOH/H2O into all 80 active wells."""
@@ -224,14 +250,16 @@ class OT2BattleshipLoop:
             self.cfg.seed, board.total_ship_cells,
         )
 
-        from plate.battleship_plate_no_touch import _board_to_wells
-
-        # _board_to_wells expects list-of-lists with 'x'/'o'
-        char_board = [
-            ["o" if board.grid[r, c] == 1 else "x" for c in range(BOARD_COLS)]
-            for r in range(BOARD_ROWS)
-        ]
-        naoh_wells, h2o_wells = _board_to_wells(char_board)
+        # grid=0 (empty) → NaOH well ; grid=1 (ship) → H₂O well
+        naoh_wells: List[str] = []
+        h2o_wells: List[str] = []
+        for r in range(BOARD_ROWS):
+            for c in range(BOARD_COLS):
+                well_name = _rc_to_well(r, c)
+                if board.grid[r, c] == 0:
+                    naoh_wells.append(well_name)
+                else:
+                    h2o_wells.append(well_name)
 
         if self.cfg.dry_run:
             log.info(
@@ -258,7 +286,7 @@ class OT2BattleshipLoop:
         then dispense into N consecutive wells before returning for the next
         batch.  With 1000µL tips and 100µL/well this gives 10 wells per trip.
         """
-        from BaituOT2Battleship.OT2_Ctrl import OT2_functions as ot
+        from hardware.ot2_ctrl import OT2_functions as ot
 
         tip_well = _tip_well_name(self._tip_index)
         self._tip_index += 1
@@ -268,7 +296,7 @@ class OT2BattleshipLoop:
         idx = 0
         while idx < total:
             # Determine batch size
-            batch_size = min(MAX_WELLS_PER_ASPIRATE, total - idx)
+            batch_size = min(self._max_wells_per_aspirate, total - idx)
             batch_wells = dest_wells[idx : idx + batch_size]
             aspirate_vol = volume * batch_size
 
@@ -300,22 +328,26 @@ class OT2BattleshipLoop:
           - grid=0 (empty) → NaOH from slot 4 reservoir
           - grid=1 (ship)  → H₂O  from slot 5 reservoir
         """
-        # ── Step 1: NaOH from Slot 4 → plate empty wells ──
-        log.info("Dispensing NaOH (slot %s) → %d plate wells ...", NAOH_SLOT, len(naoh_wells))
+        d = self.deck
+        fill_vol = float(d["fill_volume"])
+        # ── Step 1: NaOH from its slot → plate empty wells ──
+        log.info("Dispensing NaOH (slot %s) → %d plate wells ...", d["naoh_slot"], len(naoh_wells))
         self._transfer_liquid(
-            self._naoh_id, NAOH_SOURCE_WELL, naoh_wells,
-            FILL_VOLUME, f"NaOH(slot{NAOH_SLOT}:{NAOH_SOURCE_WELL})",
+            self._naoh_id, d["naoh_source_well"], naoh_wells,
+            fill_vol, f"NaOH(slot{d['naoh_slot']}:{d['naoh_source_well']})",
         )
 
-        # ── Step 2: H₂O from Slot 5 → plate ship wells ──
-        log.info("Dispensing H2O (slot %s) → %d plate wells ...", H2O_SLOT, len(h2o_wells))
+        # ── Step 2: H₂O from its slot → plate ship wells ──
+        log.info("Dispensing H2O (slot %s) → %d plate wells ...", d["h2o_slot"], len(h2o_wells))
         self._transfer_liquid(
-            self._h2o_id, H2O_SOURCE_WELL, h2o_wells,
-            FILL_VOLUME, f"H2O(slot{H2O_SLOT}:{H2O_SOURCE_WELL})",
+            self._h2o_id, d["h2o_source_well"], h2o_wells,
+            fill_vol, f"H2O(slot{d['h2o_slot']}:{d['h2o_source_well']})",
         )
 
-        log.info("Phase 1 complete: NaOH(slot%s)→%d wells, H2O(slot%s)→%d wells",
-                 NAOH_SLOT, len(naoh_wells), H2O_SLOT, len(h2o_wells))
+        log.info(
+            "Phase 1 complete: NaOH(slot%s)→%d wells, H2O(slot%s)→%d wells",
+            d["naoh_slot"], len(naoh_wells), d["h2o_slot"], len(h2o_wells),
+        )
 
     def _calibrate_geometry(self) -> Dict:
         """Load geometry + optional colour prototypes from calibration file."""
@@ -383,7 +415,7 @@ class OT2BattleshipLoop:
         """Pick up a tip for indicator dispensing (called once, kept across steps)."""
         if self.cfg.dry_run or self._indicator_tip_held:
             return
-        from BaituOT2Battleship.OT2_Ctrl import OT2_functions as ot
+        from hardware.ot2_ctrl import OT2_functions as ot
         tip_well = _tip_well_name(self._tip_index)
         self._tip_index += 1
         ot.pick_up(self._tiprack_id, tip_well)
@@ -396,28 +428,31 @@ class OT2BattleshipLoop:
             log.info("[DRY RUN] Dispense indicator → %s", well_name)
             return
 
-        from BaituOT2Battleship.OT2_Ctrl import OT2_functions as ot
+        from hardware.ot2_ctrl import OT2_functions as ot
 
         self._pick_up_indicator_tip()
 
+        d = self.deck
+        indicator_src = d["indicator_source_well"]
+        indicator_vol = float(d["indicator_volume"])
         log.info("  Indicator: slot%s:%s → plate:%s",
-                 INDICATOR_SLOT, INDICATOR_SOURCE_WELL, well_name)
+                 d["indicator_slot"], indicator_src, well_name)
         # Move to reservoir, then aspirate
-        ot.move(self._indicator_id, INDICATOR_SOURCE_WELL, offset=ASPIRATE_OFFSET)
-        ot.aspirate(INDICATOR_VOLUME, self._indicator_id, INDICATOR_SOURCE_WELL,
+        ot.move(self._indicator_id, indicator_src, offset=ASPIRATE_OFFSET)
+        ot.aspirate(indicator_vol, self._indicator_id, indicator_src,
                     offset=ASPIRATE_OFFSET, origin="bottom")
         # Move to plate well, then dispense
         ot.move(self._plate_id, well_name, offset=DISPENSE_OFFSET)
-        ot.dispense(INDICATOR_VOLUME, self._plate_id, well_name,
+        ot.dispense(indicator_vol, self._plate_id, well_name,
                     offset=DISPENSE_OFFSET, origin="top")
 
     def _park_arm(self) -> None:
         """Move arm to indicator reservoir (slot 6) to clear the camera view."""
         if self.cfg.dry_run:
             return
-        from BaituOT2Battleship.OT2_Ctrl import OT2_functions as ot
+        from hardware.ot2_ctrl import OT2_functions as ot
         if self._indicator_id:
-            ot.move(self._indicator_id, INDICATOR_SOURCE_WELL)
+            ot.move(self._indicator_id, self.deck["indicator_source_well"])
 
     def _reset_ot2(self) -> None:
         """Safety reset: home first (raise to top), then drop tip."""
@@ -425,7 +460,7 @@ class OT2BattleshipLoop:
             log.info("[DRY RUN] Reset OT-2 (home + drop tip)")
             return
 
-        from BaituOT2Battleship.OT2_Ctrl import OT2_functions as ot
+        from hardware.ot2_ctrl import OT2_functions as ot
 
         # 1) Home first — raise pipette to top to avoid collisions
         ot.home()
@@ -692,13 +727,14 @@ class OT2BattleshipLoop:
                 log.info("--skip_setup: skipping OT-2 init and board dispensing")
                 # Still need OT-2 connection + labware IDs for game loop
                 if not self.cfg.dry_run:
-                    from BaituOT2Battleship.OT2_Ctrl import OT2_functions as ot
+                    from hardware.ot2_ctrl import OT2_functions as ot
                     ot.ROBOT_IP = self.cfg.robot_ip
                     ot.reconnect_last_run()
                     # Recover labware IDs from the existing run
-                    self._tiprack_id = ot.get_labware_id_by_slot(TIPRACK_SLOT)
-                    self._plate_id = ot.get_labware_id_by_slot(PLATE_SLOT)
-                    self._indicator_id = ot.get_labware_id_by_slot(INDICATOR_SLOT)
+                    d = self.deck
+                    self._tiprack_id = ot.get_labware_id_by_slot(d["tiprack_slot"])
+                    self._plate_id = ot.get_labware_id_by_slot(d["plate_slot"])
+                    self._indicator_id = ot.get_labware_id_by_slot(d["indicator_slot"])
                 # Generate board (for ground truth) without dispensing
                 self.board = BattleshipBoard(
                     rows=BOARD_ROWS, cols=BOARD_COLS, seed=self.cfg.seed,
@@ -818,6 +854,10 @@ def main():
                         help="simulate without OT-2 hardware")
     parser.add_argument("--skip_setup", action="store_true",
                         help="skip Phase 1 (OT-2 init + board dispensing), jump to game loop")
+    parser.add_argument("--deck_path", default=None,
+                        help="JSON file overriding DEFAULT_DECK (slots / labware / "
+                             "source wells / volumes). Keys missing from the file "
+                             "fall back to DEFAULT_DECK.")
 
     args = parser.parse_args()
 
@@ -837,6 +877,7 @@ def main():
         checkpoint_path=args.resume,
         dry_run=args.dry_run,
         skip_setup=args.skip_setup,
+        deck_path=args.deck_path,
     )
 
     loop = OT2BattleshipLoop(config)
@@ -855,7 +896,7 @@ def reset():
         datefmt="%H:%M:%S",
     )
 
-    from BaituOT2Battleship.OT2_Ctrl import OT2_functions as ot
+    from hardware.ot2_ctrl import OT2_functions as ot
     ot.ROBOT_IP = args.robot_ip
     ot.reconnect_last_run()
 
