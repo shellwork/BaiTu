@@ -22,6 +22,11 @@ deliverables:
 5. **Interactive dashboard** — Streamlit UI that visualises the game and
    handles unclear CV readings with a human-in-the-loop.
 
+Here is a demo experiment for our project.
+
+![](1.png)
+![](2.png)
+
 ---
 
 ## What's implemented
