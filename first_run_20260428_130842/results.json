@@ -1,0 +1,939 @@
+{
+  "config": {
+    "strategy": "prob",
+    "seed": 42,
+    "robot_ip": "169.254.200.128",
+    "geometry_path": "hardware/calibration.json",
+    "color_develop_seconds": 10.0,
+    "output_dir": "ot2_loop_20260428_130842",
+    "checkpoint_path": null,
+    "dry_run": true,
+    "skip_setup": false,
+    "max_camera_retries": 3,
+    "camera_retry_delay": 2.0,
+    "deck_path": null,
+    "deck_overrides": {}
+  },
+  "metrics": {
+    "total_queries": 41,
+    "total_ship_cells": 17,
+    "hits_found": 17,
+    "ships_sunk": 5,
+    "ships_total": 5,
+    "unknown_classifications": 0,
+    "strategy": "prob",
+    "seed": 42,
+    "game_over": true
+  },
+  "history": [
+    {
+      "step": 1,
+      "row": 3,
+      "col": 4,
+      "well_name": "D5",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_001.png",
+      "timestamp": "2026-04-28T13:35:30.643519"
+    },
+    {
+      "step": 2,
+      "row": 4,
+      "col": 5,
+      "well_name": "E6",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_002.png",
+      "timestamp": "2026-04-28T13:35:32.250080"
+    },
+    {
+      "step": 3,
+      "row": 2,
+      "col": 3,
+      "well_name": "C4",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_003.png",
+      "timestamp": "2026-04-28T13:35:33.880618"
+    },
+    {
+      "step": 4,
+      "row": 2,
+      "col": 6,
+      "well_name": "C7",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_004.png",
+      "timestamp": "2026-04-28T13:35:35.492693"
+    },
+    {
+      "step": 5,
+      "row": 5,
+      "col": 3,
+      "well_name": "F4",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_005.png",
+      "timestamp": "2026-04-28T13:35:37.120322"
+    },
+    {
+      "step": 6,
+      "row": 2,
+      "col": 2,
+      "well_name": "C3",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_006.png",
+      "timestamp": "2026-04-28T13:35:38.732657"
+    },
+    {
+      "step": 7,
+      "row": 3,
+      "col": 7,
+      "well_name": "D8",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_007.png",
+      "timestamp": "2026-04-28T13:35:40.345787"
+    },
+    {
+      "step": 8,
+      "row": 5,
+      "col": 7,
+      "well_name": "F8",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_008.png",
+      "timestamp": "2026-04-28T13:35:41.942576"
+    },
+    {
+      "step": 9,
+      "row": 1,
+      "col": 3,
+      "well_name": "B4",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_009.png",
+      "timestamp": "2026-04-28T13:35:43.540748"
+    },
+    {
+      "step": 10,
+      "row": 3,
+      "col": 8,
+      "well_name": "D9",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_010.png",
+      "timestamp": "2026-04-28T13:35:45.138800"
+    },
+    {
+      "step": 11,
+      "row": 4,
+      "col": 1,
+      "well_name": "E2",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_011.png",
+      "timestamp": "2026-04-28T13:35:46.733733"
+    },
+    {
+      "step": 12,
+      "row": 6,
+      "col": 6,
+      "well_name": "G7",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_012.png",
+      "timestamp": "2026-04-28T13:35:48.399285"
+    },
+    {
+      "step": 13,
+      "row": 1,
+      "col": 5,
+      "well_name": "B6",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_013.png",
+      "timestamp": "2026-04-28T13:35:50.114200"
+    },
+    {
+      "step": 14,
+      "row": 4,
+      "col": 8,
+      "well_name": "E9",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_014.png",
+      "timestamp": "2026-04-28T13:35:51.867042"
+    },
+    {
+      "step": 15,
+      "row": 0,
+      "col": 3,
+      "well_name": "A4",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_015.png",
+      "timestamp": "2026-04-28T13:35:53.603601"
+    },
+    {
+      "step": 16,
+      "row": 3,
+      "col": 9,
+      "well_name": "D10",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_016.png",
+      "timestamp": "2026-04-28T13:35:55.327515"
+    },
+    {
+      "step": 17,
+      "row": 7,
+      "col": 4,
+      "well_name": "H5",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_017.png",
+      "timestamp": "2026-04-28T13:35:57.158118"
+    },
+    {
+      "step": 18,
+      "row": 7,
+      "col": 5,
+      "well_name": "H6",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": 2,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_018.png",
+      "timestamp": "2026-04-28T13:35:58.956344"
+    },
+    {
+      "step": 19,
+      "row": 3,
+      "col": 0,
+      "well_name": "D1",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_019.png",
+      "timestamp": "2026-04-28T13:36:00.743259"
+    },
+    {
+      "step": 20,
+      "row": 6,
+      "col": 2,
+      "well_name": "G3",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_020.png",
+      "timestamp": "2026-04-28T13:36:02.535521"
+    },
+    {
+      "step": 21,
+      "row": 0,
+      "col": 7,
+      "well_name": "A8",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_021.png",
+      "timestamp": "2026-04-28T13:36:04.405333"
+    },
+    {
+      "step": 22,
+      "row": 0,
+      "col": 6,
+      "well_name": "A7",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_022.png",
+      "timestamp": "2026-04-28T13:36:06.247877"
+    },
+    {
+      "step": 23,
+      "row": 0,
+      "col": 8,
+      "well_name": "A9",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_023.png",
+      "timestamp": "2026-04-28T13:36:08.107569"
+    },
+    {
+      "step": 24,
+      "row": 0,
+      "col": 5,
+      "well_name": "A6",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_024.png",
+      "timestamp": "2026-04-28T13:36:09.990801"
+    },
+    {
+      "step": 25,
+      "row": 1,
+      "col": 1,
+      "well_name": "B2",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_025.png",
+      "timestamp": "2026-04-28T13:36:11.932621"
+    },
+    {
+      "step": 26,
+      "row": 1,
+      "col": 7,
+      "well_name": "B8",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_026.png",
+      "timestamp": "2026-04-28T13:36:13.830402"
+    },
+    {
+      "step": 27,
+      "row": 0,
+      "col": 4,
+      "well_name": "A5",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_027.png",
+      "timestamp": "2026-04-28T13:36:15.742626"
+    },
+    {
+      "step": 28,
+      "row": 0,
+      "col": 9,
+      "well_name": "A10",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": 5,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_028.png",
+      "timestamp": "2026-04-28T13:36:17.752880"
+    },
+    {
+      "step": 29,
+      "row": 7,
+      "col": 0,
+      "well_name": "H1",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_029.png",
+      "timestamp": "2026-04-28T13:36:19.679942"
+    },
+    {
+      "step": 30,
+      "row": 7,
+      "col": 9,
+      "well_name": "H10",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_030.png",
+      "timestamp": "2026-04-28T13:36:21.512325"
+    },
+    {
+      "step": 31,
+      "row": 3,
+      "col": 3,
+      "well_name": "D4",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_031.png",
+      "timestamp": "2026-04-28T13:36:23.023619"
+    },
+    {
+      "step": 32,
+      "row": 3,
+      "col": 6,
+      "well_name": "D7",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": 3,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_032.png",
+      "timestamp": "2026-04-28T13:36:24.513557"
+    },
+    {
+      "step": 33,
+      "row": 4,
+      "col": 3,
+      "well_name": "E4",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": 4,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_033.png",
+      "timestamp": "2026-04-28T13:36:26.014300"
+    },
+    {
+      "step": 34,
+      "row": 0,
+      "col": 0,
+      "well_name": "A1",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_034.png",
+      "timestamp": "2026-04-28T13:36:27.551877"
+    },
+    {
+      "step": 35,
+      "row": 5,
+      "col": 0,
+      "well_name": "F1",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_035.png",
+      "timestamp": "2026-04-28T13:36:29.120919"
+    },
+    {
+      "step": 36,
+      "row": 5,
+      "col": 4,
+      "well_name": "F5",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_036.png",
+      "timestamp": "2026-04-28T13:36:30.721004"
+    },
+    {
+      "step": 37,
+      "row": 6,
+      "col": 8,
+      "well_name": "G9",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_037.png",
+      "timestamp": "2026-04-28T13:36:32.313244"
+    },
+    {
+      "step": 38,
+      "row": 7,
+      "col": 1,
+      "well_name": "H2",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_038.png",
+      "timestamp": "2026-04-28T13:36:33.914456"
+    },
+    {
+      "step": 39,
+      "row": 0,
+      "col": 1,
+      "well_name": "A2",
+      "label": "water",
+      "is_hit": false,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_039.png",
+      "timestamp": "2026-04-28T13:36:35.521618"
+    },
+    {
+      "step": 40,
+      "row": 1,
+      "col": 0,
+      "well_name": "B1",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": null,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_040.png",
+      "timestamp": "2026-04-28T13:36:37.152537"
+    },
+    {
+      "step": 41,
+      "row": 2,
+      "col": 0,
+      "well_name": "C1",
+      "label": "ship",
+      "is_hit": true,
+      "sunk_ship_size": 3,
+      "confidence": 1.0,
+      "mean_rgb": [
+        0,
+        0,
+        0
+      ],
+      "image_path": "ot2_loop_20260428_130842/images/step_041.png",
+      "timestamp": "2026-04-28T13:36:38.750280"
+    }
+  ],
+  "ground_truth": [
+    [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1,
+      1,
+      1,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0
+    ]
+  ],
+  "final_results_matrix": [
+    [
+      1,
+      0,
+      -1,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      -1,
+      -1
+    ],
+    [
+      1,
+      0,
+      -1,
+      1,
+      -1,
+      0,
+      -1,
+      0,
+      -1,
+      -1,
+      -1,
+      -1
+    ],
+    [
+      1,
+      -1,
+      0,
+      1,
+      -1,
+      -1,
+      0,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1
+    ],
+    [
+      0,
+      -1,
+      -1,
+      1,
+      0,
+      -1,
+      1,
+      1,
+      1,
+      0,
+      -1,
+      -1
+    ],
+    [
+      -1,
+      0,
+      -1,
+      1,
+      -1,
+      0,
+      -1,
+      -1,
+      0,
+      -1,
+      -1,
+      -1
+    ],
+    [
+      0,
+      -1,
+      -1,
+      0,
+      0,
+      -1,
+      -1,
+      0,
+      -1,
+      -1,
+      -1,
+      -1
+    ],
+    [
+      -1,
+      -1,
+      0,
+      -1,
+      -1,
+      -1,
+      0,
+      -1,
+      0,
+      -1,
+      -1,
+      -1
+    ],
+    [
+      0,
+      0,
+      -1,
+      -1,
+      1,
+      1,
+      -1,
+      -1,
+      -1,
+      0,
+      -1,
+      -1
+    ]
+  ]
+}

@@ -17,7 +17,7 @@ plate/simulated_battleship_plate_dataset/
 campaign/battleship_campaign_results/
 
 # Runtime camera captures (keep hardware/samples for reference)
-plate_photo_*.jpg
+# plate_photo_*.jpg
 test_rgb_*.jpg
 # Distribution / packaging
 .Python
