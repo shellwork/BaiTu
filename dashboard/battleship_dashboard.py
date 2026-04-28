@@ -1615,16 +1615,20 @@ def _render_hardware_tab() -> None:
         if snap.prob_map is not None:
             prob_active = np.asarray(snap.prob_map)[:BOARD_ROWS, :BOARD_COLS]
             # In ship mode prob_map is a placement-density distribution that
-            # sums to 1 (so individual cells are ~0.01-0.05) — hardcoding
-            # vmax=1.0 collapses everything to black. Auto-scale to the
-            # current max so the heat-map remains visible from step 1.
+            # sums to 1 (so individual cells are ~0.01-0.05) and isn't very
+            # readable. Rescale to [0, 1] relative to the current max so
+            # the most-likely cell is 1.0 and the colour-bar / annotations
+            # are intuitive ("relative belief, normalised to the leader").
             pmax = float(prob_active.max())
-            vmax_dyn = pmax if pmax > 0 else 1.0
+            if pmax > 0:
+                prob_display = prob_active / pmax
+            else:
+                prob_display = prob_active
             st.pyplot(
                 _plot_board_heatmap(
-                    prob_active,
-                    title=f"P(ship) — relative belief (max={pmax:.3f})",
-                    cmap="magma", vmin=0.0, vmax=vmax_dyn,
+                    prob_display,
+                    title=f"P(ship), normalised (raw max = {pmax:.3f})",
+                    cmap="magma", vmin=0.0, vmax=1.0,
                     annotate_values=True,
                 ),
                 clear_figure=True,
