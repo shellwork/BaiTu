@@ -73,8 +73,12 @@ Here is a demo experiment for our project.
   volumes) lives in `DEFAULT_DECK` at the top of this file — see
   [Deck layout](#deck-layout) below.
 - `calibrate_geometry.py` — interactive OpenCV tool. Click the four corner
-  wells for geometry, then sample hit / miss prototype colours. Writes
-  `hardware/calibration.json`.
+  wells for geometry, then sample 2–6 hit and 2–6 miss wells (press `d` to
+  finish each batch early). Computes prototypes in **both RGB and CIE Lab**
+  and reports a Fisher-style class-separation score. Writes
+  `hardware/calibration.json`. The runtime classifier prefers the Lab
+  discriminant (1-D LDA projection) when present — much more robust under
+  fixed lighting than the legacy RGB L2 nearest-prototype.
 - `test_rgb.py` — sanity check for RGB colour recognition on a saved or
   freshly captured plate photo.
 - `calibration.json` — current geometry + RGB prototypes for the rig.
@@ -106,16 +110,22 @@ Here is a demo experiment for our project.
     unclear readings (score in 0.4 – 0.6) for a human hit / miss call.
   - **OT-2 Hardware** — configure, launch, pause, resume, stop, and
     reset the real `hardware.battleship_ot2_loop`. Live view of the plate
-    state, belief map, latest saved camera frame, an optional **~1 Hz
-    live webcam preview** for sanity-checking the rig, last step, step
-    history, and log stream. Dry-run mode rehearses the pipeline without
-    any robot.
+    state, auto-scaled belief probability map, latest saved camera frame,
+    an optional **~1 Hz live webcam preview** for sanity-checking the rig,
+    last step, step history, and log stream. Includes a **human-check
+    banner** that pops when the colour readout is too ambiguous to trust,
+    and an **Edit / correct wells** panel for manually flipping a previous
+    classification (the belief model is rebuilt to reflect the corrected
+    history). Dry-run mode rehearses the pipeline without any robot.
 - `ot2_controller.py` — subprocess-based controller. The hardware loop
   runs as its own OS process so **Stop** sends `SIGTERM` (identical to a
   manual Ctrl-C), **Pause / Resume** use `SIGSTOP / SIGCONT`, and **Reset
   robot** shells out to `python -m hardware.battleship_ot2_loop reset
   --robot_ip …`. State is reconstructed from `checkpoint.json` that the
-  loop writes after every step.
+  loop writes after every step. Operator overrides (human hit/miss
+  confirmations, manual well corrections) flow through small JSON files
+  in `<output_dir>/` so the controller can still SIGSTOP/SIGTERM the
+  child cleanly while a prompt is open.
 
 ### Shared
 
@@ -235,7 +245,12 @@ python -m plate.generate_battleship_plate_dataset \
 ### OT-2 hardware loop
 
 ```sh
-# One-off calibration (click 4 corners + 2 sample wells per colour)
+# One-off calibration of geometry + colour
+#   Step 1: 4 corner clicks  (geometry)
+#   Step 2: 2-6 HIT clicks   (press 'd' to finish early)
+#   Step 3: 2-6 MISS clicks  (press 'd' to finish early)
+# Writes geometry + RGB prototypes + Lab discriminant (preferred at runtime)
+# plus a Fisher-style class-separation score that flags weak calibrations.
 python -m hardware.calibrate_geometry capture
 python -m hardware.calibrate_geometry annotate plate_photo_<timestamp>.jpg
 # → writes hardware/calibration.json
@@ -254,8 +269,75 @@ python -m hardware.battleship_ot2_loop --strategy prob --seed 42 \
 python -m hardware.battleship_ot2_loop --strategy prob --seed 42 \
     --robot_ip 169.254.200.128 --geometry_path hardware/calibration.json --skip_setup
 
+# Tighten / relax / disable the human-check trigger (default 0.05)
+python -m hardware.battleship_ot2_loop --strategy prob --seed 42 \
+    --robot_ip 169.254.200.128 --geometry_path hardware/calibration.json \
+    --human_check_margin 0.08      # more conservative, prompts more often
+# --human_check_margin 0.0         # disable, fully autonomous
+
 # Reset (robot returns tips, empties wells)
 python -m hardware.battleship_ot2_loop reset --robot_ip 169.254.200.128
+```
+
+### Operator workflow (human-in-the-loop QC)
+
+The hardware loop is designed to run unattended **except** when the colour
+readout is genuinely ambiguous. Two operator hooks layer on top of the
+automatic classifier:
+
+1. **Automatic human-check on ambiguous readings.** When a step's
+   confidence falls inside `|conf - 0.5| < human_check_margin` (default
+   `0.05`) the loop pauses, writes
+   `<output_dir>/human_check_request.json` with the well, auto-label,
+   confidence, mean RGB, and the captured image path, and polls for a
+   response file. The Streamlit hardware page surfaces this as a yellow
+   banner with the photograph and two buttons:
+
+   ```text
+   ⚠ Human check needed.
+   Reading for well B7 is ambiguous (auto=ship, conf=0.512, RGB=(83,59,71)).
+   The OT-2 loop is paused — please confirm hit or miss.
+       [🎯 HIT (ship)]    [💧 MISS (water)]
+   ```
+
+   Clicking writes `<output_dir>/human_check_response.json` and the loop
+   resumes within ~1 s with the operator's call (confidence is set to 1.0
+   when the operator overrides the auto-label).
+
+2. **Manual correction of a previously-classified well.** Even after the
+   loop has moved on, the **✏ Edit / correct wells** expander on the
+   hardware page lets the operator pick any past step from a dropdown
+   (newest first), choose `ship`/`water`, and **Queue correction**. The
+   correction is appended to `<output_dir>/corrections.json`. At the
+   start of the next step, the loop applies all pending corrections,
+   rebuilds `BattleshipBoard` + `Game` from the seed, and replays the
+   corrected history so the belief reflects the fixed labels for every
+   subsequent acquisition. The corrections file is consumed (deleted)
+   once applied; queueing the same well twice keeps only the latest
+   label.
+
+Both flows work with `--dry_run` so you can rehearse the dashboard prompts
+without a real robot.
+
+### Recommended end-to-end run
+
+```sh
+# 1. Calibrate from a freshly-prepared plate photo
+python -m hardware.calibrate_geometry capture
+python -m hardware.calibrate_geometry annotate plate_photo_<timestamp>.jpg
+# Inspect the printed "Lab Fisher-style score": >= 3.0 is comfortable,
+# < 1.5 means classes overlap and you should re-shoot / re-pick samples.
+
+# 2. Launch the dashboard and start the run
+streamlit run dashboard/battleship_dashboard.py
+# → OT-2 Hardware page → set strategy/seed/IP/calibration → Start
+
+# 3. Watch the live belief map (auto-scaled) update each step.
+# 4. When a yellow human-check banner appears, click HIT / MISS on the
+#    photo. The loop resumes immediately.
+# 5. If you spot a mis-labelled well after the fact, open
+#    "✏ Edit / correct wells", queue the fix, and the loop will rebuild
+#    the model before its next acquisition.
 ```
 
 ### Policy-search campaign

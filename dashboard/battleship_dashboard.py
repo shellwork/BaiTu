@@ -1011,13 +1011,21 @@ def _plot_board_heatmap(
     ax.set_yticklabels(list("ABCDEFGH")[: matrix.shape[0]], fontsize=7)
     ax.set_title(title, fontsize=10)
     if annotate_values:
+        # Pick text colour per-cell based on its normalised intensity so
+        # values remain legible on both dark and bright cmap regions.
+        v_lo = vmin if vmin is not None else float(np.nanmin(matrix))
+        v_hi = vmax if vmax is not None else float(np.nanmax(matrix))
+        span = max(v_hi - v_lo, 1e-9)
         for r in range(matrix.shape[0]):
             for c in range(matrix.shape[1]):
                 v = matrix[r, c]
                 if np.isnan(v):
                     continue
-                ax.text(c, r, f"{v:.2f}" if isinstance(v, float) else f"{int(v)}",
-                        ha="center", va="center", fontsize=6, color="white")
+                norm = (v - v_lo) / span
+                txt_colour = "white" if norm < 0.55 else "black"
+                txt = f"{v:.2f}" if isinstance(v, float) or np.issubdtype(matrix.dtype, np.floating) else f"{int(v)}"
+                ax.text(c, r, txt, ha="center", va="center",
+                        fontsize=6, color=txt_colour)
     fig.colorbar(im, ax=ax, fraction=0.04, pad=0.03)
     fig.tight_layout()
     return fig
@@ -1339,6 +1347,113 @@ def _render_live_preview_panel(running: bool) -> bool:
     return live_on
 
 
+def _render_human_check_panel(ctrl: "OT2Controller", snap) -> None:
+    """Banner shown when the subprocess is blocked on an ambiguous reading."""
+    req = snap.human_check_request or {}
+    well = req.get("well", "?")
+    auto_label = req.get("auto_label", "?")
+    conf = float(req.get("confidence", 0.5))
+    rgb = req.get("mean_rgb", [0, 0, 0])
+    img_path = req.get("image_path")
+
+    st.markdown(
+        f"<div style='padding:0.6rem 0.9rem; border-radius:0.5rem; "
+        f"background:#fef3c7; border-left:4px solid #f59e0b; margin:0.4rem 0;'>"
+        f"<b>⚠ Human check needed.</b> Reading for well <b>{well}</b> is ambiguous "
+        f"(auto={auto_label}, conf={conf:.3f}, RGB={tuple(int(x) for x in rgb)}). "
+        f"The OT-2 loop is paused — please confirm hit or miss."
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+    cols = st.columns([1, 1, 1])
+    with cols[0]:
+        if img_path and Path(img_path).exists():
+            st.image(img_path, caption=Path(img_path).name, width="stretch")
+        else:
+            st.caption("(no captured image)")
+    with cols[1]:
+        if st.button("🎯 HIT (ship)", key="hw_hcheck_hit",
+                     type="primary", width="stretch"):
+            ctrl.submit_human_check("ship")
+            st.rerun()
+    with cols[2]:
+        if st.button("💧 MISS (water)", key="hw_hcheck_miss",
+                     type="primary", width="stretch"):
+            ctrl.submit_human_check("water")
+            st.rerun()
+
+
+def _render_manual_correction_panel(ctrl: "OT2Controller", snap) -> None:
+    """Operator override: relabel a previously-classified well."""
+    history = snap.history or []
+    if not history:
+        return
+
+    pending_n = snap.pending_corrections or 0
+    expander_title = "✏ Edit / correct wells"
+    if pending_n:
+        expander_title += f"  ·  {pending_n} pending"
+
+    with st.expander(expander_title, expanded=False):
+        st.caption(
+            "Select a previously-classified well and override its label. "
+            "Corrections are queued and applied by the OT-2 loop before the "
+            "next acquisition step (the belief model is rebuilt to reflect "
+            "the corrected history)."
+        )
+
+        # Sort newest first so recent (and most likely wrong) calls are easy to find
+        options = []
+        for rec in reversed(history):
+            options.append({
+                "label": (
+                    f"{rec['well_name']} — auto={rec['label']} "
+                    f"(conf={float(rec['confidence']):.2f}, step={rec['step']})"
+                ),
+                "row": int(rec["row"]),
+                "col": int(rec["col"]),
+                "current": rec["label"],
+            })
+
+        idx = st.selectbox(
+            "Well",
+            options=list(range(len(options))),
+            format_func=lambda i: options[i]["label"],
+            key="hw_correct_well_idx",
+        )
+        sel = options[int(idx)]
+
+        new_label = st.radio(
+            "Correct label",
+            options=["ship", "water"],
+            horizontal=True,
+            index=0 if sel["current"] == "ship" else 1,
+            key="hw_correct_label",
+        )
+
+        c1, c2, c3 = st.columns([1, 1, 2])
+        with c1:
+            if st.button("Queue correction", key="hw_correct_submit",
+                         type="primary", width="stretch"):
+                if new_label == sel["current"]:
+                    st.info("Label unchanged — nothing to queue.")
+                else:
+                    ok = ctrl.queue_correction(sel["row"], sel["col"], new_label)
+                    if ok:
+                        st.success(
+                            f"Queued: {ROW_LABELS[sel['row']]}{sel['col']+1} → {new_label}. "
+                            "The OT-2 loop will rebuild its belief on the next step."
+                        )
+                    else:
+                        st.error("Could not queue correction (no active run).")
+        with c2:
+            if st.button("Clear pending", key="hw_correct_clear", width="stretch",
+                         disabled=pending_n == 0):
+                ctrl.clear_pending_corrections()
+                st.rerun()
+
+
 def _render_hardware_tab() -> None:
     ctrl = _get_ot2_controller()
     running = ctrl.is_running()
@@ -1483,6 +1598,10 @@ def _render_hardware_tab() -> None:
     remaining = max(0, snap.total_ship_cells - snap.hits)
     m[4].metric("Ship cells remaining", remaining if snap.total_ship_cells else "—")
 
+    # ── Human-check banner (subprocess paused on ambiguous reading) ───
+    if snap.human_check_request:
+        _render_human_check_panel(ctrl, snap)
+
     # ── Visualisations ────────────────────────────────────────────────
     left, right = st.columns([1, 1])
     with left:
@@ -1494,14 +1613,24 @@ def _render_hardware_tab() -> None:
 
         st.markdown("**Belief probability map**")
         if snap.prob_map is not None:
+            prob_active = np.asarray(snap.prob_map)[:BOARD_ROWS, :BOARD_COLS]
+            # In ship mode prob_map is a placement-density distribution that
+            # sums to 1 (so individual cells are ~0.01-0.05) — hardcoding
+            # vmax=1.0 collapses everything to black. Auto-scale to the
+            # current max so the heat-map remains visible from step 1.
+            pmax = float(prob_active.max())
+            vmax_dyn = pmax if pmax > 0 else 1.0
             st.pyplot(
                 _plot_board_heatmap(
-                    np.asarray(snap.prob_map)[:BOARD_ROWS, :BOARD_COLS],
-                    title="P(ship) on active 8×10 area",
-                    cmap="magma", vmin=0.0, vmax=1.0,
+                    prob_active,
+                    title=f"P(ship) — relative belief (max={pmax:.3f})",
+                    cmap="magma", vmin=0.0, vmax=vmax_dyn,
+                    annotate_values=True,
                 ),
                 clear_figure=True,
             )
+        else:
+            st.caption("Belief map appears after the first query completes.")
 
     with right:
         cam_l, cam_r = st.columns(2)
@@ -1538,6 +1667,10 @@ def _render_hardware_tab() -> None:
                     ),
                     clear_figure=True,
                 )
+
+    # ── Manual hole-status correction ─────────────────────────────────
+    if snap.history:
+        _render_manual_correction_panel(ctrl, snap)
 
     # ── Step history table ────────────────────────────────────────────
     if snap.history:

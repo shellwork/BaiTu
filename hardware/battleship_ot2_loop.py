@@ -118,6 +118,13 @@ class LoopConfig:
     max_camera_retries: int = 3
     camera_retry_delay: float = 2.0
 
+    # Human-in-the-loop colour QC
+    # If |conf - 0.5| < human_check_margin the loop pauses and waits for an
+    # operator to confirm hit/miss. Set to 0 to disable.
+    human_check_margin: float = 0.05
+    human_check_poll_seconds: float = 1.0
+    human_check_timeout_seconds: float = 0.0   # 0 = wait forever
+
     # Deck layout: loaded from --deck_path JSON first, then merged with
     # deck_overrides. Final effective deck lives on OT2BattleshipLoop.deck.
     deck_path: Optional[str] = None
@@ -194,6 +201,16 @@ class OT2BattleshipLoop:
         self._ship_rgb: Optional[np.ndarray] = None
         self._water_rgb: Optional[np.ndarray] = None
         self._rgb_l2_tolerance: float = 48.0
+
+        # Optional LAB-space discriminant (set by calibration). When present
+        # the classifier projects mean LAB onto a 1-D axis between the two
+        # prototypes — much more robust than RGB L2 under fixed lighting.
+        self._lab_ship: Optional[np.ndarray] = None
+        self._lab_water: Optional[np.ndarray] = None
+        self._lab_direction: Optional[np.ndarray] = None
+        self._lab_threshold: Optional[float] = None
+        self._lab_proto_distance: float = 0.0
+        self._color_space: str = "rgb"   # "rgb" or "lab"
 
         # OT-2 labware IDs (populated by _setup_ot2)
         self._plate_id: Optional[str] = None
@@ -364,6 +381,24 @@ class OT2BattleshipLoop:
                 log.info("  HIT  (ship)  RGB: %s", self._ship_rgb.tolist())
                 log.info("  MISS (water) RGB: %s", self._water_rgb.tolist())
                 log.info("  L2 tolerance: %.1f", self._rgb_l2_tolerance)
+
+            # Optional LAB-space discriminant (preferred when present)
+            if "lab_ship" in calib and "lab_water" in calib:
+                self._lab_ship = np.array(calib["lab_ship"], dtype=np.float32)
+                self._lab_water = np.array(calib["lab_water"], dtype=np.float32)
+                diff = self._lab_ship - self._lab_water
+                norm = float(np.linalg.norm(diff))
+                if norm > 1e-6:
+                    self._lab_direction = diff / norm
+                    self._lab_threshold = float(
+                        ((self._lab_ship + self._lab_water) / 2.0) @ self._lab_direction
+                    )
+                    self._lab_proto_distance = norm
+                    self._color_space = "lab"
+                    log.info("LAB discriminant loaded:")
+                    log.info("  HIT  Lab: %s", self._lab_ship.tolist())
+                    log.info("  MISS Lab: %s", self._lab_water.tolist())
+                    log.info("  prototype distance: %.2f", norm)
 
             log.info("Loaded calibration from %s", self.cfg.geometry_path)
             return calib
@@ -554,9 +589,10 @@ class OT2BattleshipLoop:
     ) -> Tuple[str, float, Tuple[int, int, int]]:
         """Read one well colour from the plate image.
 
-        Uses calibrated RGB prototypes (from calibration.json) if available.
-        Always uses nearest-prototype (no L2 rejection) so we never get
-        "unknown" — a low-confidence label is still better than no label.
+        Uses calibrated LAB-space discriminant when available, otherwise the
+        legacy RGB nearest-prototype classifier. Always returns a label
+        (never "unknown") — a low-confidence call is still better than none,
+        and ambiguous calls are caught later by the human-check trigger.
         """
         if self.cfg.dry_run:
             is_hit = bool(self.board.grid[row, col])
@@ -574,17 +610,33 @@ class OT2BattleshipLoop:
         image_bgr = load_image_bgr(image_path)
         mean_bgr = sample_well_mean_bgr(image_bgr, row, col, self.geometry)
         mean_rgb = mean_bgr_to_mean_rgb(mean_bgr)
+        rgb = (int(mean_rgb[0]), int(mean_rgb[1]), int(mean_rgb[2]))
 
-        # Use calibrated prototypes or defaults
+        # Preferred path: 1-D LAB discriminant from calibration
+        if self._color_space == "lab" and self._lab_direction is not None:
+            mean_lab = self._bgr_to_lab(mean_bgr)
+            projection = float(mean_lab @ self._lab_direction) - self._lab_threshold
+            half_span = max(self._lab_proto_distance / 2.0, 1e-6)
+            margin = float(np.tanh(abs(projection) / half_span))   # 0 at threshold, →1 at prototype
+            conf = 0.5 + 0.5 * margin
+            label = "ship" if projection >= 0 else "water"
+            log.info(
+                "    %s RGB=(%d,%d,%d) Lab=(%.1f,%.1f,%.1f) proj=%+.2f → %s (%.2f)",
+                _rc_to_well(row, col), *rgb,
+                float(mean_lab[0]), float(mean_lab[1]), float(mean_lab[2]),
+                projection, label, conf,
+            )
+            return label, conf, rgb
+
+        # Legacy RGB nearest-prototype path
         if self._ship_rgb is not None:
             ship_rgb = self._ship_rgb
             water_rgb = self._water_rgb
         else:
-            # No calibration — warn on first call
             if not hasattr(self, "_color_warned"):
                 log.warning(
                     "No calibrated colour prototypes! Using defaults. "
-                    "Run: python calibrate_geometry.py annotate <photo> "
+                    "Run: python -m hardware.calibrate_geometry annotate <photo> "
                     "and use --geometry_path calibration.json"
                 )
                 self._color_warned = True
@@ -592,7 +644,6 @@ class OT2BattleshipLoop:
             ship_rgb = SHIP_LIQUID_RGB
             water_rgb = WATER_LIQUID_RGB
 
-        # Nearest-prototype: always produce a label, never "unknown"
         dist_ship = float(np.linalg.norm(mean_rgb - ship_rgb))
         dist_water = float(np.linalg.norm(mean_rgb - water_rgb))
 
@@ -603,14 +654,204 @@ class OT2BattleshipLoop:
             label = "water"
             conf = max(0.0, min(1.0, dist_ship / (dist_ship + dist_water + 1e-9)))
 
-        rgb = (int(mean_rgb[0]), int(mean_rgb[1]), int(mean_rgb[2]))
-
         log.info(
             "    %s RGB=(%d,%d,%d) dist_hit=%.1f dist_miss=%.1f → %s (%.2f)",
             _rc_to_well(row, col), *rgb, dist_ship, dist_water, label, conf,
         )
 
         return label, conf, rgb
+
+    @staticmethod
+    def _bgr_to_lab(mean_bgr: np.ndarray) -> np.ndarray:
+        """Convert a single mean BGR triple to OpenCV's 8-bit Lab space."""
+        bgr_u8 = np.clip(mean_bgr.reshape(1, 1, 3), 0, 255).astype(np.uint8)
+        lab = cv2.cvtColor(bgr_u8, cv2.COLOR_BGR2LAB)
+        return lab.reshape(3).astype(np.float32)
+
+    # ── Human-in-the-loop QC (file-based IPC) ───────────────────────
+
+    def _human_check_request_path(self) -> Path:
+        return self._out / "human_check_request.json"
+
+    def _human_check_response_path(self) -> Path:
+        return self._out / "human_check_response.json"
+
+    def _corrections_path(self) -> Path:
+        return self._out / "corrections.json"
+
+    def _maybe_human_check(
+        self,
+        row: int,
+        col: int,
+        label: str,
+        conf: float,
+        rgb: Tuple[int, int, int],
+        image_path: str,
+    ) -> Tuple[str, float, bool]:
+        """If conf is too close to 0.5, pause for an operator confirmation.
+
+        Returns (label, conf, was_overridden). Called between classification
+        and model update.
+        """
+        margin = self.cfg.human_check_margin
+        if margin <= 0:
+            return label, conf, False
+        if abs(conf - 0.5) >= margin:
+            return label, conf, False
+
+        req = {
+            "step": self._step,
+            "row": int(row),
+            "col": int(col),
+            "well": _rc_to_well(row, col),
+            "auto_label": label,
+            "confidence": float(conf),
+            "mean_rgb": list(rgb),
+            "image_path": str(image_path),
+            "requested_at": datetime.now().isoformat(),
+        }
+        req_path = self._human_check_request_path()
+        resp_path = self._human_check_response_path()
+        # Clear any stale response from a previous request
+        try:
+            resp_path.unlink(missing_ok=True)  # type: ignore[arg-type]
+        except TypeError:  # py<3.8 safety net (unused here)
+            if resp_path.exists():
+                resp_path.unlink()
+
+        with open(req_path, "w") as f:
+            json.dump(req, f, indent=2)
+
+        log.warning(
+            "  ⚠ Ambiguous reading (conf=%.3f) for %s — waiting for human check ...",
+            conf, _rc_to_well(row, col),
+        )
+
+        deadline = None
+        if self.cfg.human_check_timeout_seconds > 0:
+            deadline = time.time() + self.cfg.human_check_timeout_seconds
+
+        while True:
+            if resp_path.exists():
+                try:
+                    with open(resp_path) as f:
+                        resp = json.load(f)
+                    new_label = str(resp.get("label", label))
+                    if new_label not in ("ship", "water"):
+                        new_label = label
+                    overridden = new_label != label
+                    log.info(
+                        "  ✔ Human decision: %s (was auto=%s, conf=%.3f)",
+                        new_label, label, conf,
+                    )
+                    # Cleanup
+                    resp_path.unlink()
+                    if req_path.exists():
+                        req_path.unlink()
+                    return new_label, 1.0 if overridden else conf, overridden
+                except (json.JSONDecodeError, OSError):
+                    # Mid-write: retry
+                    pass
+            if deadline is not None and time.time() > deadline:
+                log.warning(
+                    "  ⚠ Human check timed out — keeping auto label '%s'", label,
+                )
+                if req_path.exists():
+                    req_path.unlink()
+                return label, conf, False
+            time.sleep(self.cfg.human_check_poll_seconds)
+
+    def _apply_pending_corrections(self) -> None:
+        """Read corrections.json (if present) and rebuild model state.
+
+        Each correction has the form ``{"row": int, "col": int, "label": "ship"|"water"}``.
+        After a correction is applied the file is consumed (deleted) so the
+        same edit isn't re-applied on every step.
+        """
+        path = self._corrections_path()
+        if not path.exists():
+            return
+        try:
+            with open(path) as f:
+                payload = json.load(f)
+        except (json.JSONDecodeError, OSError) as exc:
+            log.warning("Could not read %s: %s", path, exc)
+            return
+
+        items = payload.get("corrections", []) if isinstance(payload, dict) else payload
+        if not items:
+            try:
+                path.unlink()
+            except OSError:
+                pass
+            return
+
+        applied = 0
+        for item in items:
+            try:
+                r = int(item["row"])
+                c = int(item["col"])
+                new_label = str(item["label"])
+                if new_label not in ("ship", "water"):
+                    continue
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            target_idx = None
+            for i, rec in enumerate(self.history):
+                if rec.row == r and rec.col == c:
+                    target_idx = i
+                    break
+            if target_idx is None:
+                log.warning(
+                    "Correction for %s ignored — well not in history.",
+                    _rc_to_well(r, c),
+                )
+                continue
+
+            old = self.history[target_idx]
+            new_is_hit = (new_label == "ship")
+            self.history[target_idx] = StepRecord(
+                step=old.step, row=old.row, col=old.col, well_name=old.well_name,
+                label=new_label, is_hit=new_is_hit,
+                sunk_ship_size=old.sunk_ship_size,
+                confidence=1.0,
+                mean_rgb=old.mean_rgb,
+                image_path=old.image_path,
+                timestamp=datetime.now().isoformat(),
+            )
+            self.results_matrix[r, c] = 1 if new_is_hit else 0
+            applied += 1
+            log.info(
+                "  ✏ Manual correction applied: %s → %s",
+                _rc_to_well(r, c), new_label,
+            )
+
+        if applied:
+            self._rebuild_model_from_history()
+            self._save_checkpoint()
+
+        try:
+            path.unlink()
+        except OSError:
+            pass
+
+    def _rebuild_model_from_history(self) -> None:
+        """Recreate board+model from seed and replay history.
+
+        Used after manual corrections so the belief reflects the corrected
+        labels for every subsequent acquisition.
+        """
+        if self.cfg.seed is None and self.board is None:
+            return
+        seed = self.cfg.seed
+        self.board = BattleshipBoard(rows=BOARD_ROWS, cols=BOARD_COLS, seed=seed)
+        self.model = Game(board_rows=BOARD_ROWS, board_cols=BOARD_COLS)
+        for rec in self.history:
+            # Replay against the ground-truth board so sunk-ship info is
+            # consistent with the observed labels.
+            _, sunk = self.board.query(rec.row, rec.col)
+            self.model.update(rec.row, rec.col, is_hit=rec.is_hit, sunk_ship=sunk)
 
     # ── Checkpoint persistence ──────────────────────────────────────
 
@@ -755,6 +996,9 @@ class OT2BattleshipLoop:
 
         try:
             while not self.board.is_game_over():
+                # 0) Apply any pending manual corrections from the dashboard
+                self._apply_pending_corrections()
+
                 # 1) Model decision
                 pos = self._get_next_position()
                 if pos is None:
@@ -783,6 +1027,11 @@ class OT2BattleshipLoop:
                 # 5) Capture image and classify
                 image_path = self._capture_image(f"step_{self._step:03d}")
                 label, conf, mean_rgb = self._classify_well(image_path, row, col)
+
+                # 5b) Human check for ambiguous readings
+                label, conf, overridden = self._maybe_human_check(
+                    row, col, label, conf, mean_rgb, image_path,
+                )
                 is_hit = (label == "ship")
 
                 # 6) Update ground truth (get sunk info)
@@ -858,6 +1107,13 @@ def main():
                         help="JSON file overriding DEFAULT_DECK (slots / labware / "
                              "source wells / volumes). Keys missing from the file "
                              "fall back to DEFAULT_DECK.")
+    parser.add_argument("--human_check_margin", type=float, default=0.05,
+                        help="Pause for operator confirmation when "
+                             "|conf - 0.5| < margin. Default 0.05; set to 0 to "
+                             "disable.")
+    parser.add_argument("--human_check_timeout_seconds", type=float, default=0.0,
+                        help="Give up on a human-check prompt and keep the auto "
+                             "label after this many seconds. 0 = wait forever.")
 
     args = parser.parse_args()
 
@@ -878,6 +1134,8 @@ def main():
         dry_run=args.dry_run,
         skip_setup=args.skip_setup,
         deck_path=args.deck_path,
+        human_check_margin=args.human_check_margin,
+        human_check_timeout_seconds=args.human_check_timeout_seconds,
     )
 
     loop = OT2BattleshipLoop(config)

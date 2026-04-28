@@ -44,6 +44,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 _POSIX = os.name == "posix"
 
 
+def _now_iso() -> str:
+    from datetime import datetime
+    return datetime.now().isoformat()
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Snapshot — pure-data view, safe to hand to the UI thread
 # ─────────────────────────────────────────────────────────────────────────
@@ -65,6 +70,9 @@ class LoopSnapshot:
     last_image_path: Optional[str] = None
     history: List[Dict[str, Any]] = field(default_factory=list)
     output_dir: Optional[str] = None
+    # Pending human check (the loop is blocked waiting for hit/miss confirmation)
+    human_check_request: Optional[Dict[str, Any]] = None
+    pending_corrections: int = 0
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -317,7 +325,76 @@ class OT2Controller:
                 if imgs:
                     snap.last_image_path = str(imgs[-1])
 
+        # Pending human-check request from the subprocess
+        req_path = out_dir / "human_check_request.json"
+        if req_path.exists():
+            try:
+                with open(req_path) as f:
+                    snap.human_check_request = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                snap.human_check_request = None
+
+        # Count any pending corrections we've queued for the subprocess
+        corr_path = out_dir / "corrections.json"
+        if corr_path.exists():
+            try:
+                with open(corr_path) as f:
+                    payload = json.load(f)
+                items = payload.get("corrections", []) if isinstance(payload, dict) else payload
+                snap.pending_corrections = len(items or [])
+            except (json.JSONDecodeError, OSError):
+                snap.pending_corrections = 0
+
         return snap
+
+    # ── Operator IPC helpers (file-based) ───────────────────────────────
+
+    def submit_human_check(self, label: str) -> bool:
+        """Respond to a pending ambiguous-reading prompt with a hit/miss call."""
+        if self._cfg is None:
+            return False
+        if label not in ("ship", "water"):
+            return False
+        out = Path(self._cfg.output_dir)
+        resp = {"label": label, "responded_at": _now_iso()}
+        with open(out / "human_check_response.json", "w") as f:
+            json.dump(resp, f, indent=2)
+        return True
+
+    def queue_correction(self, row: int, col: int, label: str) -> bool:
+        """Queue a manual correction; subprocess applies it before the next step."""
+        if self._cfg is None:
+            return False
+        if label not in ("ship", "water"):
+            return False
+        out = Path(self._cfg.output_dir)
+        path = out / "corrections.json"
+        items: List[Dict[str, Any]] = []
+        if path.exists():
+            try:
+                with open(path) as f:
+                    payload = json.load(f)
+                items = payload.get("corrections", []) if isinstance(payload, dict) else payload
+            except (json.JSONDecodeError, OSError):
+                items = []
+        # Replace any pending correction for the same well
+        items = [it for it in items if not (
+            it.get("row") == int(row) and it.get("col") == int(col)
+        )]
+        items.append({"row": int(row), "col": int(col), "label": label})
+        with open(path, "w") as f:
+            json.dump({"corrections": items}, f, indent=2)
+        return True
+
+    def clear_pending_corrections(self) -> None:
+        if self._cfg is None:
+            return
+        path = Path(self._cfg.output_dir) / "corrections.json"
+        if path.exists():
+            try:
+                path.unlink()
+            except OSError:
+                pass
 
     def logs(self, tail: int = 500) -> List[str]:
         return list(self._log_buffer)[-tail:]
@@ -346,6 +423,14 @@ class OT2Controller:
         deck_path = deck_path_override or cfg.deck_path
         if deck_path:
             args += ["--deck_path", deck_path]
+        # Pass through human-check tuning so dashboard launches honour the
+        # operator-configured margin / timeout instead of the CLI defaults.
+        args += ["--human_check_margin", str(cfg.human_check_margin)]
+        if cfg.human_check_timeout_seconds > 0:
+            args += [
+                "--human_check_timeout_seconds",
+                str(cfg.human_check_timeout_seconds),
+            ]
         return args
 
     def _read_stdout(self) -> None:

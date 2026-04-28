@@ -48,8 +48,17 @@ def _on_click(event, x, y, flags, param):
     cv2.imshow(window_name, img_display)
 
 
-def collect_clicks(img, title: str, labels: list[str]) -> list[tuple[int, int]]:
-    """Show image, collect N clicks, return list of (x, y)."""
+def collect_clicks(
+    img,
+    title: str,
+    labels: list[str],
+    min_clicks: int = 2,
+) -> list[tuple[int, int]]:
+    """Show image, collect up to ``len(labels)`` clicks, return list of (x, y).
+
+    Press 'd' once you have enough samples (>= ``min_clicks``) to finish
+    early; 'r' to reset; 'q' to abort.
+    """
     global clicks, img_display, click_limit, window_name
 
     clicks = []
@@ -58,10 +67,10 @@ def collect_clicks(img, title: str, labels: list[str]) -> list[tuple[int, int]]:
     window_name = title
 
     print(f"\n{title}")
-    print("Click in order:")
+    print(f"Click between {min_clicks} and {click_limit} wells:")
     for i, label in enumerate(labels):
         print(f"  {i+1}. {label}")
-    print("Press 'r' to reset, 'q' to quit.\n")
+    print("Press 'd' when done, 'r' to reset, 'q' to abort.\n")
 
     cv2.imshow(window_name, img_display)
     cv2.setMouseCallback(window_name, _on_click)
@@ -76,13 +85,16 @@ def collect_clicks(img, title: str, labels: list[str]) -> list[tuple[int, int]]:
             img_display = img.copy()
             cv2.imshow(window_name, img_display)
             print("  Reset — click again.")
+        if key == ord("d") and len(clicks) >= min_clicks:
+            break
         if len(clicks) == click_limit:
             break
 
     cv2.destroyAllWindows()
 
     for i, (x, y) in enumerate(clicks):
-        print(f"  [{i+1}] {labels[i]} = ({x}, {y})")
+        lbl = labels[i] if i < len(labels) else f"sample #{i+1}"
+        print(f"  [{i+1}] {lbl} = ({x}, {y})")
 
     return list(clicks)
 
@@ -152,6 +164,24 @@ def sample_rgb_at(img_bgr, x, y, radius=8) -> np.ndarray:
     return np.array([mean_bgr[2], mean_bgr[1], mean_bgr[0]], dtype=np.float32)
 
 
+def sample_lab_at(img_bgr, x, y, radius=8) -> np.ndarray:
+    """Sample mean Lab (OpenCV 8-bit) in a small disk around (x, y)."""
+    h, w = img_bgr.shape[:2]
+    y0, y1 = max(0, y - radius), min(h, y + radius + 1)
+    x0, x1 = max(0, x - radius), min(w, x + radius + 1)
+    patch = img_bgr[y0:y1, x0:x1]
+    if patch.size == 0:
+        return np.zeros(3, dtype=np.float32)
+    lab_patch = cv2.cvtColor(patch, cv2.COLOR_BGR2LAB)
+    ph, pw = lab_patch.shape[:2]
+    yy, xx = np.mgrid[0:ph, 0:pw]
+    dist = np.sqrt((xx - (x - x0))**2 + (yy - (y - y0))**2)
+    pixels = lab_patch[dist < radius]
+    if len(pixels) == 0:
+        return np.zeros(3, dtype=np.float32)
+    return pixels.mean(axis=0).astype(np.float32)
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Commands
 # ═══════════════════════════════════════════════════════════════════════
@@ -212,39 +242,62 @@ def cmd_annotate(image_path: str):
         return
 
     # ── Step 2: Colour — click hit (ship) wells ────────────────────
+    # Take up to 6 samples per class — more samples → tighter prototype.
     hit_clicks = collect_clicks(
-        vis, "STEP 2/3: Click 2-3 HIT wells (ship / H2O / no colour change)",
-        ["hit well #1", "hit well #2", "hit well #3"],
+        vis, "STEP 2/3: Click 2-6 HIT wells (ship / H2O / no colour change)",
+        [f"hit well #{i+1}" for i in range(6)],
     )
     if not hit_clicks:
         return
 
     hit_rgbs = [sample_rgb_at(img, x, y, well_radius) for x, y in hit_clicks]
+    hit_labs = [sample_lab_at(img, x, y, well_radius) for x, y in hit_clicks]
     hit_proto = np.mean(hit_rgbs, axis=0).astype(np.float32)
+    hit_lab_proto = np.mean(hit_labs, axis=0).astype(np.float32)
     print(f"\n  HIT prototype RGB: [{hit_proto[0]:.0f}, {hit_proto[1]:.0f}, {hit_proto[2]:.0f}]")
-    for i, rgb in enumerate(hit_rgbs):
-        print(f"    sample {i+1}: [{rgb[0]:.0f}, {rgb[1]:.0f}, {rgb[2]:.0f}]")
+    print(f"  HIT prototype Lab: [{hit_lab_proto[0]:.1f}, {hit_lab_proto[1]:.1f}, {hit_lab_proto[2]:.1f}]")
+    for i, (rgb, lab) in enumerate(zip(hit_rgbs, hit_labs)):
+        print(f"    sample {i+1}: RGB=[{rgb[0]:.0f},{rgb[1]:.0f},{rgb[2]:.0f}] "
+              f"Lab=[{lab[0]:.1f},{lab[1]:.1f},{lab[2]:.1f}]")
 
     # ── Step 3: Colour — click miss (water/NaOH) wells ─────────────
     miss_clicks = collect_clicks(
-        vis, "STEP 3/3: Click 2-3 MISS wells (NaOH / colour changed)",
-        ["miss well #1", "miss well #2", "miss well #3"],
+        vis, "STEP 3/3: Click 2-6 MISS wells (NaOH / colour changed)",
+        [f"miss well #{i+1}" for i in range(6)],
     )
     if not miss_clicks:
         return
 
     miss_rgbs = [sample_rgb_at(img, x, y, well_radius) for x, y in miss_clicks]
+    miss_labs = [sample_lab_at(img, x, y, well_radius) for x, y in miss_clicks]
     miss_proto = np.mean(miss_rgbs, axis=0).astype(np.float32)
+    miss_lab_proto = np.mean(miss_labs, axis=0).astype(np.float32)
     print(f"\n  MISS prototype RGB: [{miss_proto[0]:.0f}, {miss_proto[1]:.0f}, {miss_proto[2]:.0f}]")
-    for i, rgb in enumerate(miss_rgbs):
-        print(f"    sample {i+1}: [{rgb[0]:.0f}, {rgb[1]:.0f}, {rgb[2]:.0f}]")
+    print(f"  MISS prototype Lab: [{miss_lab_proto[0]:.1f}, {miss_lab_proto[1]:.1f}, {miss_lab_proto[2]:.1f}]")
+    for i, (rgb, lab) in enumerate(zip(miss_rgbs, miss_labs)):
+        print(f"    sample {i+1}: RGB=[{rgb[0]:.0f},{rgb[1]:.0f},{rgb[2]:.0f}] "
+              f"Lab=[{lab[0]:.1f},{lab[1]:.1f},{lab[2]:.1f}]")
 
-    # Compute recommended tolerance
-    all_samples = hit_rgbs + miss_rgbs
+    # Compute recommended tolerance and Lab-space discriminant quality
     proto_dist = float(np.linalg.norm(hit_proto - miss_proto))
     tolerance = max(20.0, proto_dist * 0.6)
-    print(f"\n  Distance between prototypes: {proto_dist:.1f}")
-    print(f"  Recommended L2 tolerance:    {tolerance:.1f}")
+    lab_proto_dist = float(np.linalg.norm(hit_lab_proto - miss_lab_proto))
+
+    # Project all calibration samples onto the Lab discriminant axis to
+    # report a quick quality metric (margin / class spread).
+    diff = hit_lab_proto - miss_lab_proto
+    direction = diff / (lab_proto_dist + 1e-9)
+    threshold = float(((hit_lab_proto + miss_lab_proto) / 2.0) @ direction)
+    hit_proj = np.array([float(lab @ direction) - threshold for lab in hit_labs])
+    miss_proj = np.array([float(lab @ direction) - threshold for lab in miss_labs])
+    inter_class = (float(hit_proj.mean()) - float(miss_proj.mean()))
+    intra_class = float(hit_proj.std() + miss_proj.std()) or 1e-6
+    fisher = inter_class / intra_class
+
+    print(f"\n  RGB prototype distance: {proto_dist:.1f}  (tolerance → {tolerance:.1f})")
+    print(f"  Lab prototype distance: {lab_proto_dist:.1f}")
+    print(f"  Lab Fisher-style score: {fisher:+.2f}  "
+          f"(>= 3.0 is comfortable, < 1.5 means classes overlap badly)")
 
     # ── Save calibration.json ───────────────────────────────────────
     calib = {
@@ -252,6 +305,11 @@ def cmd_annotate(image_path: str):
         "ship_rgb": [float(v) for v in hit_proto],
         "water_rgb": [float(v) for v in miss_proto],
         "rgb_l2_tolerance": round(tolerance, 1),
+        # Preferred LAB-space discriminant — used by the OT-2 loop when present.
+        "lab_ship": [float(v) for v in hit_lab_proto],
+        "lab_water": [float(v) for v in miss_lab_proto],
+        "lab_proto_distance": round(lab_proto_dist, 2),
+        "lab_fisher_score": round(float(fisher), 2),
     }
 
     # Always write calibration.json next to this script (hardware/).
